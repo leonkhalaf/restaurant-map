@@ -55,14 +55,12 @@
 
         .filter-title { font-weight: 600; margin-bottom: 14px; color: var(--color-text); font-size: 16px; }
         
-        /* ================= ПОИСК ================= */
         .search-box {
             width: 100%; padding: 10px 12px; border-radius: 10px;
             border: 1px solid #444; background: #252540; color: var(--color-text);
             font-size: 14px; margin-bottom: 14px;
         }
         .search-box:focus { outline: none; border-color: var(--color-blue); }
-        /* ========================================= */
         
         .filter-group { margin-bottom: 14px; }
         .filter-group label { 
@@ -97,14 +95,21 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .loader-text { color: #aaa; font-size: 15px; }
 
+        /* ================= МАРКЕРЫ (ИСПРАВЛЕНО) ================= */
         .marker-dot {
             width: 20px; height: 20px; border-radius: 50%;
             border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-size: 12px;
+            line-height: 1;
         }
         .marker-dot:hover { transform: scale(1.25); }
         .m-restaurant { background: #2ecc71; }
         .m-event { background: #e74c3c; }
         .m-cafe { background: #95a5a6; }
+        /* ========================================================= */
 
         .leaflet-popup-content-wrapper {
             background: var(--color-panel); color: var(--color-text); 
@@ -117,15 +122,31 @@
         
         .popup-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
         
+        /* ================= КНОПКИ В ПОПАПЕ (ИСПРАВЛЕНО) ================= */
         .popup-btn {
-            padding: 10px 14px; border-radius: 10px; border: none;
+            padding: 10px 14px; border-radius: 10px; 
             font-size: 14px; font-weight: 500; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 6px;
             text-decoration: none !important; color: white !important;
+            text-align: center;
+            transition: opacity 0.2s;
         }
         .popup-btn:active { transform: scale(0.98); }
-        .popup-btn[href] { text-decoration: none !important; }
-        .popup-btn[href]:hover { text-decoration: none !important; opacity: 0.9; }
+        
+        /* Синяя кнопка - Маршрут */
+        .popup-btn.btn-blue {
+            background: var(--color-blue) !important;
+            border: none !important;
+        }
+        
+        /* Оливковая кнопка - Пост (ИСПРАВЛЕНО) */
+        .popup-btn.btn-olive {
+            background: var(--color-olive) !important;
+            border: none !important;
+        }
+        
+        .popup-btn[href]:hover { opacity: 0.9; }
+        /* ============================================================= */
 
         #location-toast {
             position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
@@ -168,9 +189,7 @@
     <div id="filter-panel">
         <div class="filter-title">🔍 Фильтры</div>
         
-        <!-- ================= ПОИСК ================= -->
         <input type="text" class="search-box" id="search-input" placeholder="🔍 Поиск по названию..." oninput="applyFilters()">
-        <!-- ========================================= -->
         
         <div class="filter-group">
             <label>Тип места:</label>
@@ -298,7 +317,6 @@
         function processResults(data) {
             let added = 0;
             data.forEach(row => {
-                // ⚠️ ДОБАВЛЕНО: Название места
                 const name = row['название'] || row['тип'] || 'Без названия';
                 const type = row['тип'] || 'Другое';
                 const stars = parseInt(row['звезды'] || '0');
@@ -313,7 +331,6 @@
                 const linkHtml = row['ссылка'] ? 
                     `<a href="${row['ссылка']}" target="_blank" class="popup-btn btn-olive">🔗 Пост</a>` : '';
 
-                // ⚠️ В поп-апе теперь показываем название
                 const popup = `
                     <div>
                         <div class="popup-b">${name}</div>
@@ -327,7 +344,6 @@
                 `;
                 marker.bindPopup(popup);
                 
-                // ⚠️ Сохраняем название для поиска
                 marker.meta = { 
                     type: normalize(type), 
                     stars: stars,
@@ -353,8 +369,6 @@
             ).map(cb => normalize(cb.value));
             
             const minStars = parseInt(document.getElementById('stars-select').value);
-            
-            // ⚠️ ПОИСК: получаем текст из поля поиска
             const searchText = normalize(document.getElementById('search-input').value);
 
             allMarkers.forEach(m => map.removeLayer(m));
@@ -362,8 +376,6 @@
             allMarkers.forEach(marker => {
                 const typeMatch = checkedTypes.some(t => marker.meta.type.includes(t));
                 const starMatch = marker.meta.stars >= minStars;
-                
-                // ⚠️ ПОИСК: проверяем совпадение по названию
                 const searchMatch = searchText === '' || 
                                     marker.meta.name.includes(searchText) || 
                                     marker.meta.originalName.toLowerCase().includes(searchText);
@@ -377,7 +389,7 @@
         function resetFilters() {
             document.querySelectorAll('#filter-panel input[type="checkbox"]').forEach(cb => cb.checked = true);
             document.getElementById('stars-select').value = '0';
-            document.getElementById('search-input').value = '';  // ⚠️ Очищаем поиск
+            document.getElementById('search-input').value = '';
             applyFilters();
         }
 
