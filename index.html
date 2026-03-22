@@ -4,25 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Карта Мест</title>
-    
-    <!-- Карта Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <!-- Парсер CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    
-    <!-- Telegram WebApp -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <style>
-        /* ================= ЦВЕТА (3 основных) ================= */
         :root {
-            --color-bg: #0f0f1a;        /* Фон (тёмный) */
-            --color-blue: #3390ec;      /* Синий (кнопки, акценты) */
-            --color-olive: #556b2f;     /* Оливковый (кнопки) */
-            --color-text: #ffffff;      /* Текст */
-            --color-panel: #1e1e32;     /* Панели */
+            --color-bg: #0f0f1a;
+            --color-blue: #3390ec;
+            --color-olive: #556b2f;
+            --color-text: #ffffff;
+            --color-panel: #1e1e32;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -37,7 +30,6 @@
         
         #map { height: 100vh; width: 100vw; }
 
-        /* ================= КНОПКИ ================= */
         .btn {
             position: absolute; z-index: 1000; padding: 12px 18px;
             background: var(--color-panel); color: var(--color-text);
@@ -51,9 +43,7 @@
         
         #filter-btn { top: 12px; right: 12px; }
         #location-btn { top: 12px; left: 12px; }
-        #add-btn { bottom: 20px; right: 12px; background: var(--color-olive); }
 
-        /* ================= ПАНЕЛЬ ФИЛЬТРОВ ================= */
         #filter-panel {
             position: absolute; top: 64px; right: 12px; z-index: 999;
             background: var(--color-panel);
@@ -63,108 +53,81 @@
         }
         #filter-panel.active { display: block; }
 
-        .filter-title { 
-            font-weight: 600; margin-bottom: 14px; 
-            color: var(--color-text); font-size: 16px; 
-        }
-        
+        .filter-title { font-weight: 600; margin-bottom: 14px; color: var(--color-text); font-size: 16px; }
         .filter-group { margin-bottom: 14px; }
-        
         .filter-group label { 
             display: flex; align-items: center; gap: 10px; 
-            padding: 8px 0; font-size: 14px; cursor: pointer; 
-            color: #ccc; transition: color 0.2s;
+            padding: 8px 0; font-size: 14px; cursor: pointer; color: #ccc;
         }
         .filter-group label:hover { color: var(--color-text); }
-        
-        .filter-group input[type="checkbox"] { 
-            width: 18px; height: 18px; 
-            accent-color: var(--color-blue); cursor: pointer; 
-        }
-
+        .filter-group input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--color-blue); }
         .filter-group select {
             width: 100%; padding: 10px 12px; border-radius: 10px; 
-            border: 1px solid #444; background: #252540; 
-            color: var(--color-text); font-size: 14px; margin-top: 6px;
+            border: 1px solid #444; background: #252540; color: var(--color-text);
         }
 
-        /* ================= КНОПКИ ДЕЙСТВИЙ ================= */
         .btn-action {
             width: 100%; padding: 12px; border: none; border-radius: 12px;
-            color: white; font-weight: 600; font-size: 15px; 
-            cursor: pointer; margin-top: 8px; text-decoration: none;
-            display: inline-block; text-align: center;
+            color: white; font-weight: 600; font-size: 15px; cursor: pointer; margin-top: 8px;
         }
         .btn-action:active { transform: scale(0.98); }
         .btn-blue { background: var(--color-blue); }
         .btn-olive { background: var(--color-olive); }
 
-        /* ================= ЛОАДЕР ================= */
         #loader {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(15, 15, 26, 0.95); z-index: 2000;
-            display: flex; flex-direction: column; 
-            align-items: center; justify-content: center; gap: 20px;
-            transition: opacity 0.3s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
         }
         #loader.hidden { opacity: 0; pointer-events: none; }
-        
         .spinner {
             width: 50px; height: 50px; border: 4px solid #2d2d44;
             border-top-color: var(--color-blue); border-radius: 50%;
             animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        
         .loader-text { color: #aaa; font-size: 15px; }
 
-        /* ================= МАРКЕРЫ ================= */
         .marker-dot {
             width: 20px; height: 20px; border-radius: 50%;
             border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 11px; transition: transform 0.2s;
         }
         .marker-dot:hover { transform: scale(1.25); }
-        
-        .m-restaurant { background: #2ecc71; }  /* Зелёный */
-        .m-event { background: #e74c3c; }       /* Красный */
-        .m-cafe { background: #95a5a6; }        /* Серый */
+        .m-restaurant { background: #2ecc71; }
+        .m-event { background: #e74c3c; }
+        .m-cafe { background: #95a5a6; }
 
-        /* ================= ПОПАП ================= */
         .leaflet-popup-content-wrapper {
             background: var(--color-panel); color: var(--color-text); 
-            border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); 
-            border: 1px solid #333; max-width: 280px;
+            border-radius: 14px; border: 1px solid #333; max-width: 280px;
         }
         .leaflet-popup-tip { background: var(--color-panel); }
-        
         .popup-b { font-weight: 600; font-size: 16px; margin-bottom: 6px; }
-        .popup-stars { color: #f1c40f; margin: 4px 0; font-size: 14px; }
+        .popup-stars { color: #f1c40f; margin: 4px 0; }
         .popup-desc { color: #ccc; font-size: 14px; margin: 6px 0; line-height: 1.4; }
         
         .popup-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
         
+        /* КНОПКИ БЕЗ ПОДЧЕРКИВАНИЯ, БЕЛЫЙ ТЕКСТ */
         .popup-btn {
             padding: 10px 14px; border-radius: 10px; border: none;
             font-size: 14px; font-weight: 500; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 6px;
-            text-decoration: none; transition: transform 0.2s;
+            text-decoration: none !important; color: white !important;
         }
         .popup-btn:active { transform: scale(0.98); }
+        .popup-btn[href] { text-decoration: none !important; }
+        .popup-btn[href]:hover { text-decoration: none !important; opacity: 0.9; }
 
-        /* ================= УВЕДОМЛЕНИЕ О КООРДИНАТАХ ================= */
         #location-toast {
-            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
             background: var(--color-panel); padding: 12px 20px;
             border-radius: 12px; border: 1px solid #444;
             font-size: 13px; text-align: center; z-index: 1000;
             display: none; max-width: 90%;
         }
-        #location-toast.show { display: block; animation: fadeIn 0.3s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        #location-toast.show { display: block; }
 
-        /* Адаптив для мобильных */
         @media (max-width: 480px) {
             .btn { padding: 10px 14px; font-size: 14px; }
             #filter-panel { width: calc(100% - 24px); right: 12px; }
@@ -172,37 +135,22 @@
     </style>
 </head>
 <body>
-    <!-- Лоадер -->
     <div id="loader">
         <div class="spinner"></div>
         <div class="loader-text">Загружаем места...</div>
     </div>
 
-    <!-- Кнопки -->
     <button id="location-btn" class="btn" onclick="showMyLocation()">📍 Моё место</button>
     <button id="filter-btn" class="btn" onclick="toggleFilters()">⚙ Фильтры</button>
-    <a href="https://docs.google.com/forms/d/e/1FAIpQLSdFQiqVRBCLUlgUuh29VOPWHninYGJnIV4B3p7uNR1wN4p5xw/viewform" target="_blank" id="add-btn" class="btn">➕ Добавить место</a>
 
-    <!-- Панель фильтров -->
     <div id="filter-panel">
         <div class="filter-title">🔍 Фильтры</div>
-        
-        <!-- 
-        ═══════════════════════════════════════════════════
-        📝 КАК ДОБАВИТЬ НОВЫЙ ТИП МЕСТА В ФИЛЬТРЫ:
-        1. Скопируйте строку с label
-        2. Замените value и текст на ваш тип (например, "Бар")
-        3. В Google Таблице используйте точно такое же название
-        4. В JS (getMarkerClass) добавьте цвет для нового типа
-        ═══════════════════════════════════════════════════
-        -->
         <div class="filter-group">
             <label>Тип места:</label>
             <label><input type="checkbox" value="Ресторан" checked onchange="applyFilters()"> Ресторан</label>
             <label><input type="checkbox" value="Кафе" checked onchange="applyFilters()"> Кафе</label>
             <label><input type="checkbox" value="Мероприятие" checked onchange="applyFilters()"> Мероприятие</label>
         </div>
-        
         <div class="filter-group">
             <label>Мин. звёзды:</label>
             <select id="stars-select" onchange="applyFilters()">
@@ -212,33 +160,19 @@
                 <option value="5">Только 5</option>
             </select>
         </div>
-        
-        <button class="btn-action btn-blue" onclick="resetFilters()">🔄 Сбросить фильтры</button>
+        <button class="btn-action btn-blue" onclick="resetFilters()">🔄 Сбросить</button>
     </div>
 
-    <!-- Уведомление о координатах -->
     <div id="location-toast"></div>
-
-    <!-- Карта -->
     <div id="map"></div>
 
     <script>
-        // ================= НАСТРОЙКИ =================
-        
-        // ⚠️ ССЫЛКА НА ВАШУ GOOGLE ТАБЛИЦУ (CSV) - Лист 2
-        // Важно: опубликуйте именно "Лист 2" в формате CSV
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUUBwrpxYhsqeh8Jh6CR5KSQUfFNuBi7WVYTOYur0DsFyEuQARkc_6s7YGouXzhCvJoc63iWrSKvsU/pub?output=csv';
-        
-        // Центр карты (Екатеринбург)
         const CENTER = [56.8389, 60.6057];
         const DEFAULT_ZOOM = 12;
-        
-        // =============================================
 
-        // Инициализация карты
         const map = L.map('map').setView(CENTER, DEFAULT_ZOOM);
         
-        // Тёмная тема карты (CartoDB Dark Matter)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
             subdomains: 'abcd',
@@ -248,28 +182,18 @@
         let allMarkers = [];
         let userMarker = null;
 
-        // Нормализация текста
         function normalize(str) {
             return (str || '').toString().trim().toLowerCase();
         }
 
-        /* 
-        ═══════════════════════════════════════════════════
-        🎨 КАК ДОБАВИТЬ ЦВЕТ ДЛЯ НОВОГО ТИПА МЕСТА:
-        1. Добавьте условие в функцию ниже
-        2. Пример: if (t.includes('бар')) return 'm-bar';
-        3. Добавьте CSS класс .m-bar { background: #цвет; }
-        ═══════════════════════════════════════════════════
-        */
         function getMarkerClass(type) {
             const t = normalize(type);
             if (t.includes('ресторан')) return 'm-restaurant';
             if (t.includes('мероприятие')) return 'm-event';
             if (t.includes('кафе')) return 'm-cafe';
-            return 'm-cafe'; // Цвет по умолчанию
+            return 'm-cafe';
         }
 
-        // Создание иконки маркера
         function createIcon(colorClass, stars) {
             return L.divIcon({
                 className: `marker-dot ${colorClass}`,
@@ -279,23 +203,20 @@
             });
         }
 
-        // Генерация ссылки Google Maps (маршрут)
         function getGoogleMapsLink(lat, lng) {
             return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
         }
 
-        // Показать моё местоположение
         function showMyLocation() {
             const toast = document.getElementById('location-toast');
-            
             if (!navigator.geolocation) {
-                toast.textContent = '❌ Геолокация не поддерживается браузером';
+                toast.textContent = '❌ Геолокация не поддерживается';
                 toast.classList.add('show');
                 setTimeout(() => toast.classList.remove('show'), 3000);
                 return;
             }
 
-            toast.textContent = '📍 Определяем местоположение...';
+            toast.textContent = '📍 Определяем...';
             toast.classList.add('show');
 
             navigator.geolocation.getCurrentPosition(
@@ -303,12 +224,8 @@
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
                     
-                    // Удаляем старый маркер
-                    if (userMarker) {
-                        map.removeLayer(userMarker);
-                    }
+                    if (userMarker) map.removeLayer(userMarker);
                     
-                    // Добавляем маркер пользователя
                     userMarker = L.marker([lat, lng], {
                         icon: L.divIcon({
                             className: 'marker-dot',
@@ -318,26 +235,18 @@
                         })
                     }).addTo(map);
                     
-                    // Центрируем карту
                     map.flyTo([lat, lng], 15);
-                    
                     toast.textContent = `✅ Вы здесь: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
                     setTimeout(() => toast.classList.remove('show'), 4000);
                 },
                 (error) => {
-                    toast.textContent = '❌ Не удалось определить местоположение';
+                    toast.textContent = '❌ Не удалось определить';
                     setTimeout(() => toast.classList.remove('show'), 3000);
-                    console.error('Geolocation error:', error);
                 },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         }
 
-        // Загрузка данных из Google Таблицы
         function loadData() {
             fetch(SHEET_URL)
                 .then(response => response.text())
@@ -350,56 +259,44 @@
                             processResults(results.data);
                         },
                         error: function(err) {
-                            console.error('Ошибка парсинга:', err);
-                            document.querySelector('.loader-text').textContent = 'Ошибка загрузки данных';
+                            document.querySelector('.loader-text').textContent = 'Ошибка загрузки';
                         }
                     });
                 })
-                .catch(err => {
-                    console.error('Ошибка fetch:', err);
+                .catch(() => {
                     document.querySelector('.loader-text').textContent = 'Ошибка подключения';
                 });
         }
 
-        // Обработка данных
         function processResults(data) {
             let added = 0;
-            
             data.forEach(row => {
-                // ⚠️ Пропускаем первую колонку (время) - берём со 2-й колонки
-                // Предполагаемая структура: Время | Тип | Звезды | Широта | Долгота | Описание | Ссылка
-                const type = row['тип'] || row['2'] || 'Другое';
-                const stars = parseInt(row['звезды'] || row['3'] || '0');
-                const lat = parseFloat(row['широта'] || row['4']);
-                const lng = parseFloat(row['долгота'] || row['5']);
+                const type = row['тип'] || 'Другое';
+                const stars = parseInt(row['звезды'] || '0');
+                const lat = parseFloat(row['широта']);
+                const lng = parseFloat(row['долгота']);
                 
                 if (isNaN(lat) || isNaN(lng)) return;
 
                 const colorClass = getMarkerClass(type);
-                
-                const marker = L.marker([lat, lng], {
-                    icon: createIcon(colorClass, stars)
-                });
+                const marker = L.marker([lat, lng], { icon: createIcon(colorClass, stars) });
+
+                const linkHtml = row['ссылка'] ? 
+                    `<a href="${row['ссылка']}" target="_blank" class="popup-btn btn-olive">🔗 Пост</a>` : '';
 
                 const popup = `
                     <div>
                         <div class="popup-b">${type}</div>
                         <div class="popup-stars">${'⭐'.repeat(stars)}</div>
-                        <div class="popup-desc">${row['описание'] || row['6'] || ''}</div>
+                        <div class="popup-desc">${row['описание'] || ''}</div>
                         <div class="popup-actions">
-                            <a href="${getGoogleMapsLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">
-                                🗺 Маршрут
-                            </a>
-                            ${row['ссылка'] || row['7'] ? `
-                            <a href="${row['ссылка'] || row['7']}" target="_blank" class="popup-btn btn-olive">
-                                🔗 Пост
-                            </a>` : ''}
+                            <a href="${getGoogleMapsLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">🗺 Маршрут</a>
+                            ${linkHtml}
                         </div>
                     </div>
                 `;
                 marker.bindPopup(popup);
-                
-                marker.meta = { type: normalize(type), stars: stars, originalType: type };
+                marker.meta = { type: normalize(type), stars: stars };
                 allMarkers.push(marker);
                 marker.addTo(map);
                 added++;
@@ -409,7 +306,6 @@
             console.log('✅ Загружено мест:', added);
         }
 
-        // Фильтры
         function toggleFilters() {
             document.getElementById('filter-panel').classList.toggle('active');
         }
@@ -418,18 +314,13 @@
             const checkedTypes = Array.from(
                 document.querySelectorAll('#filter-panel input[type="checkbox"]:checked')
             ).map(cb => normalize(cb.value));
-            
             const minStars = parseInt(document.getElementById('stars-select').value);
 
             allMarkers.forEach(m => map.removeLayer(m));
-            
             allMarkers.forEach(marker => {
                 const typeMatch = checkedTypes.some(t => marker.meta.type.includes(t));
                 const starMatch = marker.meta.stars >= minStars;
-                
-                if (typeMatch && starMatch) {
-                    marker.addTo(map);
-                }
+                if (typeMatch && starMatch) marker.addTo(map);
             });
         }
 
@@ -439,11 +330,7 @@
             applyFilters();
         }
 
-        map.on('click', () => {
-            document.getElementById('filter-panel').classList.remove('active');
-        });
-
-        // Загрузка
+        map.on('click', () => document.getElementById('filter-panel').classList.remove('active'));
         loadData();
         
         if (window.Telegram?.WebApp) {
