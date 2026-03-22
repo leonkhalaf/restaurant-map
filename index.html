@@ -48,11 +48,12 @@
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: white; padding: 20px; border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 2000; display: block;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <div id="loading">Загрузка карты...</div>
+    <div id="loading">Загрузка карты...<br><small>Проверьте консоль (F12) при ошибках</small></div>
     <button id="filter-btn" onclick="toggleFilters()">⚙ Фильтры</button>
     <div id="filter-panel">
         <div class="filter-group">
@@ -75,9 +76,6 @@
     <div id="map"></div>
 
     <script>
-        // =======================
-        // ⚠️ ВСТАВЬТЕ СЮДА ВАШУ ССЫЛКУ НА GOOGLE ТАБЛИЦУ (CSV)
-        // =======================
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUUBwrpxYhsqeh8Jh6CR5KSQUfFNuBi7WVYTOYur0DsFyEuQARkc_6s7YGouXzhCvJoc63iWrSKvsU/pub?output=csv';
 
         const map = L.map('map').setView([56.8389, 60.6057], 12);
@@ -87,10 +85,17 @@
 
         let allMarkers = [];
 
+        // Функция для "очистки" заголовков от пробелов и регистр-независимый поиск
+        function normalizeHeader(header) {
+            return header.trim().toLowerCase();
+        }
+
         function getIconColor(type) {
-            if (type && type.includes('Ресторан')) return 'marker-restaurant';
-            if (type && type.includes('Мероприятие')) return 'marker-event';
-            if (type && type.includes('Кафе')) return 'marker-cafe';
+            if (!type) return 'marker-cafe';
+            const t = type.toLowerCase();
+            if (t.includes('ресторан')) return 'marker-restaurant';
+            if (t.includes('мероприятие')) return 'marker-event';
+            if (t.includes('кафе')) return 'marker-cafe';
             return 'marker-cafe';
         }
 
@@ -103,44 +108,64 @@
         }
 
         function loadData() {
-            Papa.parse(SHEET_URL, {
-                download: true,
-                header: true,
-                complete: function(results) {
-                    document.getElementById('loading').style.display = 'none';
-                    const data = results.data;
-                    data.forEach(row => {
-                        if(row.Широта && row.Долгота) {
-                            const lat = parseFloat(row.Широта);
-                            const lng = parseFloat(row.Долгота);
-                            const type = row.Тип || 'Другое';
-                            const stars = parseInt(row.Звезды) || 0;
-                            const colorClass = getIconColor(type);
+            // Загружаем как текст с явным указанием кодировки через fetch
+            fetch(SHEET_URL)
+                .then(response => response.text())
+                .then(csvText => {
+                    Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true,
+                        transformHeader: function(header) {
+                            return normalizeHeader(header);
+                        },
+                        complete: function(results) {
+                            document.getElementById('loading').style.display = 'none';
+                            console.log('Загружено строк:', results.data.length);
+                            
+                            const data = results.data;
+                            let added = 0;
+                            
+                            data.forEach(row => {
+                                // Обращаемся к полям через нормализованные ключи
+                                const lat = parseFloat(row['широта']);
+                                const lng = parseFloat(row['долгота']);
+                                
+                                if (!isNaN(lat) && !isNaN(lng)) {
+                                    const type = row['тип'] || 'Другое';
+                                    const stars = parseInt(row['звезды']) || 0;
+                                    const colorClass = getIconColor(type);
+                                    
+                                    const marker = L.marker([lat, lng], {
+                                        icon: createCustomIcon(colorClass)
+                                    });
 
-                            const marker = L.marker([lat, lng], {
-                                icon: createCustomIcon(colorClass)
+                                    const popupContent = `
+                                        <div class="popup-content">
+                                            <b>${type}</b>
+                                            <div class="stars">${'⭐'.repeat(stars)}</div>
+                                            <div>${row['описание'] || ''}</div>
+                                            <a href="${row['ссылка'] || '#'}" target="_blank">🔗 Открыть пост</a>
+                                        </div>
+                                    `;
+                                    marker.bindPopup(popupContent);
+                                    marker.meta = { type: type, stars: stars };
+                                    allMarkers.push(marker);
+                                    marker.addTo(map);
+                                    added++;
+                                }
                             });
-
-                            const popupContent = `
-                                <div class="popup-content">
-                                    <b>${type}</b>
-                                    <div class="stars">${'⭐'.repeat(stars)}</div>
-                                    <div>${row.Описание || ''}</div>
-                                    <a href="${row.Ссылка || '#'}" target="_blank">🔗 Открыть пост</a>
-                                </div>
-                            `;
-                            marker.bindPopup(popupContent);
-                            marker.meta = { type: type, stars: stars };
-                            allMarkers.push(marker);
-                            marker.addTo(map);
+                            console.log('Добавлено маркеров:', added);
+                        },
+                        error: function(err) {
+                            document.getElementById('loading').innerText = 'Ошибка парсинга CSV!';
+                            console.error('PapaParse error:', err);
                         }
                     });
-                },
-                error: function(err) {
-                    document.getElementById('loading').innerText = 'Ошибка загрузки данных! Проверьте ссылку.';
-                    console.error(err);
-                }
-            });
+                })
+                .catch(err => {
+                    document.getElementById('loading').innerText = 'Ошибка загрузки данных!';
+                    console.error('Fetch error:', err);
+                });
         }
 
         function toggleFilters() {
@@ -152,17 +177,22 @@
             document.getElementById('filter-panel').classList.remove('active');
             const checkedTypes = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
             const minStars = parseInt(document.getElementById('stars-select').value);
+            
             allMarkers.forEach(m => map.removeLayer(m));
+            
             allMarkers.forEach(marker => {
-                const isTypeMatch = checkedTypes.includes(marker.meta.type);
+                const isTypeMatch = checkedTypes.some(t => marker.meta.type.toLowerCase().includes(t.toLowerCase()));
                 const isStarMatch = marker.meta.stars >= minStars;
                 if (isTypeMatch && isStarMatch) { marker.addTo(map); }
             });
         }
 
+        // Инициализация
         loadData();
-        window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
+        if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+        }
     </script>
 </body>
 </html>
