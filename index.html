@@ -30,7 +30,6 @@
         
         #map { height: 100vh; width: 100vw; }
 
-        /* ================= КНОПКИ ================= */
         .btn {
             position: absolute; z-index: 1000; padding: 12px 18px;
             background: var(--color-panel); color: var(--color-text);
@@ -42,13 +41,9 @@
         .btn:active { transform: scale(0.98); }
         .btn:hover { border-color: var(--color-blue); }
         
-        /* ⚠️ Кнопка фильтров - справа сверху */
         #filter-btn { top: 12px; right: 12px; }
-        
-        /* ⚠️ Кнопка местоположения - СЛЕВА, но ниже зума (top: 80px) */
-        #location-btn { top: 80px; left: 12px; }
+        #location-btn { bottom: 20px; left: 12px; }
 
-        /* ================= ПАНЕЛЬ ФИЛЬТРОВ ================= */
         #filter-panel {
             position: absolute; top: 64px; right: 12px; z-index: 999;
             background: var(--color-panel);
@@ -77,9 +72,7 @@
         }
         .btn-action:active { transform: scale(0.98); }
         .btn-blue { background: var(--color-blue); }
-        .btn-olive { background: var(--color-olive); }
 
-        /* ================= ЛОАДЕР ================= */
         #loader {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(15, 15, 26, 0.95); z-index: 2000;
@@ -94,7 +87,6 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .loader-text { color: #aaa; font-size: 15px; }
 
-        /* ================= МАРКЕРЫ ================= */
         .marker-dot {
             width: 20px; height: 20px; border-radius: 50%;
             border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
@@ -104,7 +96,6 @@
         .m-event { background: #e74c3c; }
         .m-cafe { background: #95a5a6; }
 
-        /* ================= ПОПАП ================= */
         .leaflet-popup-content-wrapper {
             background: var(--color-panel); color: var(--color-text); 
             border-radius: 14px; border: 1px solid #333; max-width: 280px;
@@ -126,10 +117,9 @@
         .popup-btn[href] { text-decoration: none !important; }
         .popup-btn[href]:hover { text-decoration: none !important; opacity: 0.9; }
 
-        /* ================= УВЕДОМЛЕНИЕ О КООРДИНАТАХ ================= */
         #location-toast {
             position: absolute; 
-            bottom: 20px;
+            bottom: 80px;
             left: 50%; 
             transform: translateX(-50%);
             background: var(--color-panel); 
@@ -146,7 +136,6 @@
         #location-toast.show { display: block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
-        /* ================= КНОПКИ ЗУМА КАРТЫ (ИСПРАВЛЕНО) ================= */
         .leaflet-control-zoom {
             border: none !important;
             box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
@@ -186,7 +175,6 @@
             margin-bottom: 0 !important;
         }
 
-        /* Адаптив */
         @media (max-width: 480px) {
             .btn { padding: 10px 14px; font-size: 14px; }
             #filter-panel { width: calc(100% - 24px); right: 12px; }
@@ -199,7 +187,6 @@
         <div class="loader-text">Загружаем места...</div>
     </div>
 
-    <!-- ⚠️ Кнопка местоположения теперь ниже (top: 80px в CSS) -->
     <button id="location-btn" class="btn" onclick="showMyLocation()">📍 Моё место</button>
     <button id="filter-btn" class="btn" onclick="toggleFilters()">⚙ Фильтры</button>
 
@@ -263,8 +250,9 @@
             });
         }
 
-        function getGoogleMapsLink(lat, lng) {
-            return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+        // ⚠️ ИСПРАВЛЕНО: Яндекс.Карты вместо Google
+        function getYandexMapsLink(lat, lng) {
+            return `https://yandex.ru/maps/?rtext=~${lat},${lng}`;
         }
 
         function showMyLocation() {
@@ -272,7 +260,7 @@
             if (!navigator.geolocation) {
                 toast.textContent = '❌ Геолокация не поддерживается';
                 toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 3000);
+                setTimeout(() => toast.classList.remove('show'), 5000);
                 return;
             }
 
@@ -297,11 +285,11 @@
                     
                     map.flyTo([lat, lng], 15);
                     toast.textContent = `✅ Вы здесь: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-                    setTimeout(() => toast.classList.remove('show'), 4000);
+                    setTimeout(() => toast.classList.remove('show'), 5000);
                 },
                 (error) => {
                     toast.textContent = '❌ Не удалось определить';
-                    setTimeout(() => toast.classList.remove('show'), 3000);
+                    setTimeout(() => toast.classList.remove('show'), 5000);
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
@@ -344,13 +332,14 @@
                 const linkHtml = row['ссылка'] ? 
                     `<a href="${row['ссылка']}" target="_blank" class="popup-btn btn-olive">🔗 Пост</a>` : '';
 
+                // ⚠️ ИСПРАВЛЕНО: вызов Яндекс.Карт
                 const popup = `
                     <div>
                         <div class="popup-b">${type}</div>
                         <div class="popup-stars">${'⭐'.repeat(stars)}</div>
                         <div class="popup-desc">${row['описание'] || ''}</div>
                         <div class="popup-actions">
-                            <a href="${getGoogleMapsLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">🗺 Маршрут</a>
+                            <a href="${getYandexMapsLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">🗺 Маршрут</a>
                             ${linkHtml}
                         </div>
                     </div>
