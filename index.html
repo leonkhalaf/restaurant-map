@@ -39,7 +39,7 @@
 
         /* ================= КНОПКИ ================= */
         .btn {
-            position: absolute; z-index: 1000; right: 12px; padding: 12px 18px;
+            position: absolute; z-index: 1000; padding: 12px 18px;
             background: var(--color-panel); color: var(--color-text);
             border: 1px solid #444; border-radius: 12px; 
             font-size: 15px; font-weight: 500; cursor: pointer;
@@ -49,7 +49,9 @@
         .btn:active { transform: scale(0.98); }
         .btn:hover { border-color: var(--color-blue); }
         
-        #filter-btn { top: 12px; }
+        #filter-btn { top: 12px; right: 12px; }
+        #location-btn { top: 12px; left: 12px; }
+        #add-btn { bottom: 20px; right: 12px; background: var(--color-olive); }
 
         /* ================= ПАНЕЛЬ ФИЛЬТРОВ ================= */
         #filter-panel {
@@ -90,19 +92,12 @@
         .btn-action {
             width: 100%; padding: 12px; border: none; border-radius: 12px;
             color: white; font-weight: 600; font-size: 15px; 
-            cursor: pointer; margin-top: 8px;
+            cursor: pointer; margin-top: 8px; text-decoration: none;
+            display: inline-block; text-align: center;
         }
         .btn-action:active { transform: scale(0.98); }
-        
-        /* Синяя кнопка */
-        .btn-blue {
-            background: var(--color-blue);
-        }
-        
-        /* Оливковая кнопка */
-        .btn-olive {
-            background: var(--color-olive);
-        }
+        .btn-blue { background: var(--color-blue); }
+        .btn-olive { background: var(--color-olive); }
 
         /* ================= ЛОАДЕР ================= */
         #loader {
@@ -132,7 +127,6 @@
         }
         .marker-dot:hover { transform: scale(1.25); }
         
-        /* 3 цвета маркеров */
         .m-restaurant { background: #2ecc71; }  /* Зелёный */
         .m-event { background: #e74c3c; }       /* Красный */
         .m-cafe { background: #95a5a6; }        /* Серый */
@@ -159,6 +153,17 @@
         }
         .popup-btn:active { transform: scale(0.98); }
 
+        /* ================= УВЕДОМЛЕНИЕ О КООРДИНАТАХ ================= */
+        #location-toast {
+            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: var(--color-panel); padding: 12px 20px;
+            border-radius: 12px; border: 1px solid #444;
+            font-size: 13px; text-align: center; z-index: 1000;
+            display: none; max-width: 90%;
+        }
+        #location-toast.show { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
         /* Адаптив для мобильных */
         @media (max-width: 480px) {
             .btn { padding: 10px 14px; font-size: 14px; }
@@ -173,8 +178,10 @@
         <div class="loader-text">Загружаем места...</div>
     </div>
 
-    <!-- Кнопка фильтров -->
+    <!-- Кнопки -->
+    <button id="location-btn" class="btn" onclick="showMyLocation()">📍 Моё место</button>
     <button id="filter-btn" class="btn" onclick="toggleFilters()">⚙ Фильтры</button>
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSdFQiqVRBCLUlgUuh29VOPWHninYGJnIV4B3p7uNR1wN4p5xw/viewform" target="_blank" id="add-btn" class="btn">➕ Добавить место</a>
 
     <!-- Панель фильтров -->
     <div id="filter-panel">
@@ -183,12 +190,10 @@
         <!-- 
         ═══════════════════════════════════════════════════
         📝 КАК ДОБАВИТЬ НОВЫЙ ТИП МЕСТА В ФИЛЬТРЫ:
-        
-        1. Скопируйте строку с label ниже
-        2. Замените value="Кафе" на ваше название (например, "Бар")
-        3. Замените текст "Кафе" на отображаемое название
-        4. В Google Таблице используйте точно такое же название в колонке "Тип"
-        5. В секции JS (getMarkerClass) добавьте цвет для нового типа
+        1. Скопируйте строку с label
+        2. Замените value и текст на ваш тип (например, "Бар")
+        3. В Google Таблице используйте точно такое же название
+        4. В JS (getMarkerClass) добавьте цвет для нового типа
         ═══════════════════════════════════════════════════
         -->
         <div class="filter-group">
@@ -196,7 +201,6 @@
             <label><input type="checkbox" value="Ресторан" checked onchange="applyFilters()"> Ресторан</label>
             <label><input type="checkbox" value="Кафе" checked onchange="applyFilters()"> Кафе</label>
             <label><input type="checkbox" value="Мероприятие" checked onchange="applyFilters()"> Мероприятие</label>
-            <!-- Добавьте новые типы здесь -->
         </div>
         
         <div class="filter-group">
@@ -212,13 +216,17 @@
         <button class="btn-action btn-blue" onclick="resetFilters()">🔄 Сбросить фильтры</button>
     </div>
 
+    <!-- Уведомление о координатах -->
+    <div id="location-toast"></div>
+
     <!-- Карта -->
     <div id="map"></div>
 
     <script>
         // ================= НАСТРОЙКИ =================
         
-        // ⚠️ ССЫЛКА НА ВАШУ GOOGLE ТАБЛИЦУ (CSV)
+        // ⚠️ ССЫЛКА НА ВАШУ GOOGLE ТАБЛИЦУ (CSV) - Лист 2
+        // Важно: опубликуйте именно "Лист 2" в формате CSV
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUUBwrpxYhsqeh8Jh6CR5KSQUfFNuBi7WVYTOYur0DsFyEuQARkc_6s7YGouXzhCvJoc63iWrSKvsU/pub?output=csv';
         
         // Центр карты (Екатеринбург)
@@ -238,8 +246,9 @@
         }).addTo(map);
 
         let allMarkers = [];
+        let userMarker = null;
 
-        // Нормализация текста (убирает пробелы, приводит к нижнему регистру)
+        // Нормализация текста
         function normalize(str) {
             return (str || '').toString().trim().toLowerCase();
         }
@@ -247,11 +256,9 @@
         /* 
         ═══════════════════════════════════════════════════
         🎨 КАК ДОБАВИТЬ ЦВЕТ ДЛЯ НОВОГО ТИПА МЕСТА:
-        
-        1. Добавьте новое условие в функцию ниже
-        2. Пример для "Бар":
-           if (t.includes('бар')) return 'm-bar';
-        3. Добавьте CSS класс .m-bar { background: #ваш_цвет; }
+        1. Добавьте условие в функцию ниже
+        2. Пример: if (t.includes('бар')) return 'm-bar';
+        3. Добавьте CSS класс .m-bar { background: #цвет; }
         ═══════════════════════════════════════════════════
         */
         function getMarkerClass(type) {
@@ -259,7 +266,6 @@
             if (t.includes('ресторан')) return 'm-restaurant';
             if (t.includes('мероприятие')) return 'm-event';
             if (t.includes('кафе')) return 'm-cafe';
-            // Добавьте новые типы здесь
             return 'm-cafe'; // Цвет по умолчанию
         }
 
@@ -267,15 +273,68 @@
         function createIcon(colorClass, stars) {
             return L.divIcon({
                 className: `marker-dot ${colorClass}`,
-                html: stars >= 4 ? '★' : '',  // Звёздочка для 4-5 звёзд
+                html: stars >= 4 ? '★' : '',
                 iconSize: [20, 20],
                 iconAnchor: [10, 10]
             });
         }
 
-        // Генерация ссылки Яндекс.Карты (маршрут от текущего места)
-        function getYandexRouteLink(lat, lng) {
-            return `https://yandex.ru/maps/?rtext=~${lat},${lng}`;
+        // Генерация ссылки Google Maps (маршрут)
+        function getGoogleMapsLink(lat, lng) {
+            return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+        }
+
+        // Показать моё местоположение
+        function showMyLocation() {
+            const toast = document.getElementById('location-toast');
+            
+            if (!navigator.geolocation) {
+                toast.textContent = '❌ Геолокация не поддерживается браузером';
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+                return;
+            }
+
+            toast.textContent = '📍 Определяем местоположение...';
+            toast.classList.add('show');
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    // Удаляем старый маркер
+                    if (userMarker) {
+                        map.removeLayer(userMarker);
+                    }
+                    
+                    // Добавляем маркер пользователя
+                    userMarker = L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            className: 'marker-dot',
+                            html: '📍',
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 15]
+                        })
+                    }).addTo(map);
+                    
+                    // Центрируем карту
+                    map.flyTo([lat, lng], 15);
+                    
+                    toast.textContent = `✅ Вы здесь: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                    setTimeout(() => toast.classList.remove('show'), 4000);
+                },
+                (error) => {
+                    toast.textContent = '❌ Не удалось определить местоположение';
+                    setTimeout(() => toast.classList.remove('show'), 3000);
+                    console.error('Geolocation error:', error);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
         }
 
         // Загрузка данных из Google Таблицы
@@ -286,7 +345,7 @@
                     Papa.parse(csvText, {
                         header: true,
                         skipEmptyLines: true,
-                        transformHeader: h => normalize(h),  // Нормализуем заголовки
+                        transformHeader: h => normalize(h),
                         complete: function(results) {
                             processResults(results.data);
                         },
@@ -302,67 +361,59 @@
                 });
         }
 
-        // Обработка данных и создание маркеров
+        // Обработка данных
         function processResults(data) {
             let added = 0;
             
             data.forEach(row => {
-                const lat = parseFloat(row['широта']);
-                const lng = parseFloat(row['долгота']);
+                // ⚠️ Пропускаем первую колонку (время) - берём со 2-й колонки
+                // Предполагаемая структура: Время | Тип | Звезды | Широта | Долгота | Описание | Ссылка
+                const type = row['тип'] || row['2'] || 'Другое';
+                const stars = parseInt(row['звезды'] || row['3'] || '0');
+                const lat = parseFloat(row['широта'] || row['4']);
+                const lng = parseFloat(row['долгота'] || row['5']);
                 
-                // Пропускаем строки без координат
                 if (isNaN(lat) || isNaN(lng)) return;
 
-                const type = row['тип'] || 'Другое';
-                const stars = parseInt(row['звезды']) || 0;
                 const colorClass = getMarkerClass(type);
                 
                 const marker = L.marker([lat, lng], {
                     icon: createIcon(colorClass, stars)
                 });
 
-                // Содержимое поп-апа
                 const popup = `
                     <div>
                         <div class="popup-b">${type}</div>
                         <div class="popup-stars">${'⭐'.repeat(stars)}</div>
-                        <div class="popup-desc">${row['описание'] || ''}</div>
+                        <div class="popup-desc">${row['описание'] || row['6'] || ''}</div>
                         <div class="popup-actions">
-                            <a href="${getYandexRouteLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">
+                            <a href="${getGoogleMapsLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">
                                 🗺 Маршрут
                             </a>
-                            ${row['ссылка'] ? `
-                            <a href="${row['ссылка']}" target="_blank" class="popup-btn btn-olive">
-                                🔗 Пост-отзыв
+                            ${row['ссылка'] || row['7'] ? `
+                            <a href="${row['ссылка'] || row['7']}" target="_blank" class="popup-btn btn-olive">
+                                🔗 Пост
                             </a>` : ''}
                         </div>
                     </div>
                 `;
                 marker.bindPopup(popup);
                 
-                // Сохраняем метаданные для фильтрации
-                marker.meta = { 
-                    type: normalize(type), 
-                    stars: stars, 
-                    originalType: type 
-                };
-                
+                marker.meta = { type: normalize(type), stars: stars, originalType: type };
                 allMarkers.push(marker);
                 marker.addTo(map);
                 added++;
             });
 
-            // Скрываем лоадер
             document.getElementById('loader').classList.add('hidden');
             console.log('✅ Загружено мест:', added);
         }
 
-        // Показать/скрыть панель фильтров
+        // Фильтры
         function toggleFilters() {
             document.getElementById('filter-panel').classList.toggle('active');
         }
 
-        // Применение фильтров (автоматически при изменении)
         function applyFilters() {
             const checkedTypes = Array.from(
                 document.querySelectorAll('#filter-panel input[type="checkbox"]:checked')
@@ -370,10 +421,8 @@
             
             const minStars = parseInt(document.getElementById('stars-select').value);
 
-            // Скрываем все маркеры
             allMarkers.forEach(m => map.removeLayer(m));
             
-            // Показываем только подходящие
             allMarkers.forEach(marker => {
                 const typeMatch = checkedTypes.some(t => marker.meta.type.includes(t));
                 const starMatch = marker.meta.stars >= minStars;
@@ -384,32 +433,22 @@
             });
         }
 
-        // Сброс фильтров к исходным значениям
         function resetFilters() {
-            // Сброс чекбоксов
-            document.querySelectorAll('#filter-panel input[type="checkbox"]').forEach(cb => {
-                cb.checked = true;
-            });
-            
-            // Сброс звёзд
+            document.querySelectorAll('#filter-panel input[type="checkbox"]').forEach(cb => cb.checked = true);
             document.getElementById('stars-select').value = '0';
-            
-            // Применение
             applyFilters();
         }
 
-        // Закрытие фильтров при клике на карту
         map.on('click', () => {
             document.getElementById('filter-panel').classList.remove('active');
         });
 
-        // Загрузка данных при старте
+        // Загрузка
         loadData();
         
-        // Инициализация Telegram WebApp
         if (window.Telegram?.WebApp) {
             window.Telegram.WebApp.ready();
-            window.Telegram.WebApp.expand();  // Развернуть на весь экран
+            window.Telegram.WebApp.expand();
         }
     </script>
 </body>
