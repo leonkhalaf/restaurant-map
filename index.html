@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Карта Мест</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { height: 100vh; width: 100vw; }
+        #filter-btn {
+            position: absolute; top: 10px; right: 10px; z-index: 1000;
+            background: white; border: none; padding: 10px 15px;
+            border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            font-weight: bold; cursor: pointer; font-size: 16px;
+        }
+        #filter-panel {
+            position: absolute; top: 60px; right: 10px; z-index: 1000;
+            background: white; padding: 15px; border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); width: 260px;
+            display: none; max-height: 80vh; overflow-y: auto;
+        }
+        #filter-panel.active { display: block; }
+        .filter-group { margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .filter-group:last-child { border-bottom: none; }
+        .filter-group label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; }
+        .filter-group input[type="checkbox"] { margin-right: 8px; }
+        .apply-btn {
+            width: 100%; background: #3390ec; color: white; border: none;
+            padding: 12px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;
+        }
+        .apply-btn:hover { background: #2578c9; }
+        .custom-marker {
+            border-radius: 50%; border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4); transition: all 0.2s;
+        }
+        .custom-marker:hover { transform: scale(1.2); z-index: 1000 !important; }
+        .marker-restaurant { background-color: #2ecc71; }
+        .marker-event { background-color: #e74c3c; }
+        .marker-cafe { background-color: #34495e; }
+        .popup-content b { display: block; margin-bottom: 5px; font-size: 15px; }
+        .popup-content a { color: #3390ec; text-decoration: none; font-weight: 500; }
+        .popup-content .stars { color: #f1c40f; margin: 5px 0; }
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; padding: 20px; border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 2000; display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Загрузка карты...</div>
+    <button id="filter-btn" onclick="toggleFilters()">⚙ Фильтры</button>
+    <div id="filter-panel">
+        <div class="filter-group">
+            <label>Тип места:</label>
+            <label><input type="checkbox" value="Ресторан" checked> Ресторан</label>
+            <label><input type="checkbox" value="Кафе" checked> Кафе</label>
+            <label><input type="checkbox" value="Мероприятие" checked> Мероприятие</label>
+        </div>
+        <div class="filter-group">
+            <label>Звезды (мин):</label>
+            <select id="stars-select" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                <option value="0">Любые</option>
+                <option value="3">3+</option>
+                <option value="4">4+</option>
+                <option value="5">5</option>
+            </select>
+        </div>
+        <button class="apply-btn" onclick="applyFilters()">Применить</button>
+    </div>
+    <div id="map"></div>
+
+    <script>
+        // =======================
+        // ⚠️ ВСТАВЬТЕ СЮДА ВАШУ ССЫЛКУ НА GOOGLE ТАБЛИЦУ (CSV)
+        // =======================
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUUBwrpxYhsqeh8Jh6CR5KSQUfFNuBi7WVYTOYur0DsFyEuQARkc_6s7YGouXzhCvJoc63iWrSKvsU/pub?output=csv';
+
+        const map = L.map('map').setView([56.8389, 60.6057], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        let allMarkers = [];
+
+        function getIconColor(type) {
+            if (type && type.includes('Ресторан')) return 'marker-restaurant';
+            if (type && type.includes('Мероприятие')) return 'marker-event';
+            if (type && type.includes('Кафе')) return 'marker-cafe';
+            return 'marker-cafe';
+        }
+
+        function createCustomIcon(colorClass) {
+            return L.divIcon({
+                className: `custom-marker ${colorClass}`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+        }
+
+        function loadData() {
+            Papa.parse(SHEET_URL, {
+                download: true,
+                header: true,
+                complete: function(results) {
+                    document.getElementById('loading').style.display = 'none';
+                    const data = results.data;
+                    data.forEach(row => {
+                        if(row.Широта && row.Долгота) {
+                            const lat = parseFloat(row.Широта);
+                            const lng = parseFloat(row.Долгота);
+                            const type = row.Тип || 'Другое';
+                            const stars = parseInt(row.Звезды) || 0;
+                            const colorClass = getIconColor(type);
+
+                            const marker = L.marker([lat, lng], {
+                                icon: createCustomIcon(colorClass)
+                            });
+
+                            const popupContent = `
+                                <div class="popup-content">
+                                    <b>${type}</b>
+                                    <div class="stars">${'⭐'.repeat(stars)}</div>
+                                    <div>${row.Описание || ''}</div>
+                                    <a href="${row.Ссылка || '#'}" target="_blank">🔗 Открыть пост</a>
+                                </div>
+                            `;
+                            marker.bindPopup(popupContent);
+                            marker.meta = { type: type, stars: stars };
+                            allMarkers.push(marker);
+                            marker.addTo(map);
+                        }
+                    });
+                },
+                error: function(err) {
+                    document.getElementById('loading').innerText = 'Ошибка загрузки данных! Проверьте ссылку.';
+                    console.error(err);
+                }
+            });
+        }
+
+        function toggleFilters() {
+            const panel = document.getElementById('filter-panel');
+            panel.classList.toggle('active');
+        }
+
+        function applyFilters() {
+            document.getElementById('filter-panel').classList.remove('active');
+            const checkedTypes = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+            const minStars = parseInt(document.getElementById('stars-select').value);
+            allMarkers.forEach(m => map.removeLayer(m));
+            allMarkers.forEach(marker => {
+                const isTypeMatch = checkedTypes.includes(marker.meta.type);
+                const isStarMatch = marker.meta.stars >= minStars;
+                if (isTypeMatch && isStarMatch) { marker.addTo(map); }
+            });
+        }
+
+        loadData();
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+    </script>
+</body>
+</html>
