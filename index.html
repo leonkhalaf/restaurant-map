@@ -54,6 +54,16 @@
         #filter-panel.active { display: block; }
 
         .filter-title { font-weight: 600; margin-bottom: 14px; color: var(--color-text); font-size: 16px; }
+        
+        /* ================= ПОИСК ================= */
+        .search-box {
+            width: 100%; padding: 10px 12px; border-radius: 10px;
+            border: 1px solid #444; background: #252540; color: var(--color-text);
+            font-size: 14px; margin-bottom: 14px;
+        }
+        .search-box:focus { outline: none; border-color: var(--color-blue); }
+        /* ========================================= */
+        
         .filter-group { margin-bottom: 14px; }
         .filter-group label { 
             display: flex; align-items: center; gap: 10px; 
@@ -118,62 +128,27 @@
         .popup-btn[href]:hover { text-decoration: none !important; opacity: 0.9; }
 
         #location-toast {
-            position: absolute; 
-            bottom: 80px;
-            left: 50%; 
-            transform: translateX(-50%);
-            background: var(--color-panel); 
-            padding: 12px 20px;
-            border-radius: 12px; 
-            border: 1px solid #444;
-            font-size: 13px; 
-            text-align: center; 
-            z-index: 1000;
-            display: none; 
-            max-width: 90%;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: var(--color-panel); padding: 12px 20px;
+            border-radius: 12px; border: 1px solid #444;
+            font-size: 13px; text-align: center; z-index: 1000;
+            display: none; max-width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
         #location-toast.show { display: block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
-        .leaflet-control-zoom {
-            border: none !important;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
+        .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important; }
+        .leaflet-control-zoom-in, .leaflet-control-zoom-out {
+            background: var(--color-panel) !important; color: var(--color-text) !important;
+            border: 1px solid #444 !important; font-size: 20px !important; font-weight: bold !important;
+            width: 40px !important; height: 40px !important; line-height: 40px !important; margin-bottom: 4px !important;
         }
-        
-        .leaflet-control-zoom-in, 
-        .leaflet-control-zoom-out {
-            background: var(--color-panel) !important;
-            color: var(--color-text) !important;
-            border: 1px solid #444 !important;
-            font-size: 20px !important;
-            font-weight: bold !important;
-            width: 40px !important;
-            height: 40px !important;
-            line-height: 40px !important;
-            margin-bottom: 4px !important;
+        .leaflet-control-zoom-in:hover, .leaflet-control-zoom-out:hover {
+            background: #2d2d44 !important; border-color: var(--color-blue) !important;
         }
-        
-        .leaflet-control-zoom-in:hover, 
-        .leaflet-control-zoom-out:hover {
-            background: #2d2d44 !important;
-            border-color: var(--color-blue) !important;
-        }
-
-        .leaflet-bar {
-            border: none !important;
-            border-radius: 12px !important;
-            overflow: hidden !important;
-        }
-
-        .leaflet-bar a:first-child {
-            border-radius: 12px 12px 0 0 !important;
-        }
-        
-        .leaflet-bar a:last-child {
-            border-radius: 0 0 12px 12px !important;
-            margin-bottom: 0 !important;
-        }
+        .leaflet-bar { border: none !important; border-radius: 12px !important; overflow: hidden !important; }
+        .leaflet-bar a:first-child { border-radius: 12px 12px 0 0 !important; }
+        .leaflet-bar a:last-child { border-radius: 0 0 12px 12px !important; margin-bottom: 0 !important; }
 
         @media (max-width: 480px) {
             .btn { padding: 10px 14px; font-size: 14px; }
@@ -192,6 +167,11 @@
 
     <div id="filter-panel">
         <div class="filter-title">🔍 Фильтры</div>
+        
+        <!-- ================= ПОИСК ================= -->
+        <input type="text" class="search-box" id="search-input" placeholder="🔍 Поиск по названию..." oninput="applyFilters()">
+        <!-- ========================================= -->
+        
         <div class="filter-group">
             <label>Тип места:</label>
             <label><input type="checkbox" value="Ресторан" checked onchange="applyFilters()"> Ресторан</label>
@@ -250,9 +230,8 @@
             });
         }
 
-        // ⚠️ ИСПРАВЛЕНО: Яндекс.Карты вместо Google
-        function getYandexMapsLink(lat, lng) {
-            return `https://yandex.ru/maps/?rtext=~${lat},${lng}`;
+        function getGoogleMapsLink(lat, lng) {
+            return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
         }
 
         function showMyLocation() {
@@ -319,6 +298,8 @@
         function processResults(data) {
             let added = 0;
             data.forEach(row => {
+                // ⚠️ ДОБАВЛЕНО: Название места
+                const name = row['название'] || row['тип'] || 'Без названия';
                 const type = row['тип'] || 'Другое';
                 const stars = parseInt(row['звезды'] || '0');
                 const lat = parseFloat(row['широта']);
@@ -332,20 +313,27 @@
                 const linkHtml = row['ссылка'] ? 
                     `<a href="${row['ссылка']}" target="_blank" class="popup-btn btn-olive">🔗 Пост</a>` : '';
 
-                // ⚠️ ИСПРАВЛЕНО: вызов Яндекс.Карт
+                // ⚠️ В поп-апе теперь показываем название
                 const popup = `
                     <div>
-                        <div class="popup-b">${type}</div>
+                        <div class="popup-b">${name}</div>
                         <div class="popup-stars">${'⭐'.repeat(stars)}</div>
                         <div class="popup-desc">${row['описание'] || ''}</div>
                         <div class="popup-actions">
-                            <a href="${getYandexMapsLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">🗺 Маршрут</a>
+                            <a href="${getGoogleMapsLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">🗺 Маршрут</a>
                             ${linkHtml}
                         </div>
                     </div>
                 `;
                 marker.bindPopup(popup);
-                marker.meta = { type: normalize(type), stars: stars };
+                
+                // ⚠️ Сохраняем название для поиска
+                marker.meta = { 
+                    type: normalize(type), 
+                    stars: stars,
+                    name: normalize(name),
+                    originalName: name
+                };
                 allMarkers.push(marker);
                 marker.addTo(map);
                 added++;
@@ -363,19 +351,33 @@
             const checkedTypes = Array.from(
                 document.querySelectorAll('#filter-panel input[type="checkbox"]:checked')
             ).map(cb => normalize(cb.value));
+            
             const minStars = parseInt(document.getElementById('stars-select').value);
+            
+            // ⚠️ ПОИСК: получаем текст из поля поиска
+            const searchText = normalize(document.getElementById('search-input').value);
 
             allMarkers.forEach(m => map.removeLayer(m));
+            
             allMarkers.forEach(marker => {
                 const typeMatch = checkedTypes.some(t => marker.meta.type.includes(t));
                 const starMatch = marker.meta.stars >= minStars;
-                if (typeMatch && starMatch) marker.addTo(map);
+                
+                // ⚠️ ПОИСК: проверяем совпадение по названию
+                const searchMatch = searchText === '' || 
+                                    marker.meta.name.includes(searchText) || 
+                                    marker.meta.originalName.toLowerCase().includes(searchText);
+                
+                if (typeMatch && starMatch && searchMatch) {
+                    marker.addTo(map);
+                }
             });
         }
 
         function resetFilters() {
             document.querySelectorAll('#filter-panel input[type="checkbox"]').forEach(cb => cb.checked = true);
             document.getElementById('stars-select').value = '0';
+            document.getElementById('search-input').value = '';  // ⚠️ Очищаем поиск
             applyFilters();
         }
 
