@@ -95,21 +95,24 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .loader-text { color: #aaa; font-size: 15px; }
 
-        /* ================= МАРКЕРЫ (ИСПРАВЛЕНО) ================= */
+        /* ================= МАРКЕРЫ (ПРОСТО И РАБОЧЕ) ================= */
         .marker-dot {
-            width: 20px; height: 20px; border-radius: 50%;
-            border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-            display: flex; 
-            align-items: center; 
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
             justify-content: center;
-            font-size: 12px;
-            line-height: 1;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
         }
         .marker-dot:hover { transform: scale(1.25); }
-        .m-restaurant { background: #2ecc71; }
-        .m-event { background: #e74c3c; }
-        .m-cafe { background: #95a5a6; }
-        /* ========================================================= */
+        
+        .m-restaurant { background-color: #2ecc71 !important; }
+        .m-event { background-color: #e74c3c !important; }
+        .m-cafe { background-color: #95a5a6 !important; }
+        /* ============================================================ */
 
         .leaflet-popup-content-wrapper {
             background: var(--color-panel); color: var(--color-text); 
@@ -122,7 +125,7 @@
         
         .popup-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
         
-        /* ================= КНОПКИ В ПОПАПЕ (ИСПРАВЛЕНО) ================= */
+        /* ================= КНОПКИ В ПОПАПЕ ================= */
         .popup-btn {
             padding: 10px 14px; border-radius: 10px; 
             font-size: 14px; font-weight: 500; cursor: pointer;
@@ -132,21 +135,10 @@
             transition: opacity 0.2s;
         }
         .popup-btn:active { transform: scale(0.98); }
-        
-        /* Синяя кнопка - Маршрут */
-        .popup-btn.btn-blue {
-            background: var(--color-blue) !important;
-            border: none !important;
-        }
-        
-        /* Оливковая кнопка - Пост (ИСПРАВЛЕНО) */
-        .popup-btn.btn-olive {
-            background: var(--color-olive) !important;
-            border: none !important;
-        }
-        
+        .popup-btn.btn-blue { background-color: var(--color-blue) !important; }
+        .popup-btn.btn-olive { background-color: var(--color-olive) !important; }
         .popup-btn[href]:hover { opacity: 0.9; }
-        /* ============================================================= */
+        /* ========================================================= */
 
         #location-toast {
             position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
