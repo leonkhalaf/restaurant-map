@@ -9,53 +9,112 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; }
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; }
         #map { height: 100vh; width: 100vw; }
-        #filter-btn {
+        
+        /* Кнопки управления */
+        .control-btn {
             position: absolute; top: 10px; right: 10px; z-index: 1000;
-            background: white; border: none; padding: 10px 15px;
-            border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            font-weight: bold; cursor: pointer; font-size: 16px;
+            background: #2d2d44; color: #fff; border: 1px solid #444;
+            padding: 10px 14px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; display: flex; align-items: center; gap: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4); transition: background 0.2s;
         }
-        #filter-panel {
+        .control-btn:hover { background: #3d3d5c; }
+        #filter-btn { top: 10px; right: 10px; }
+        #debug-btn { top: 10px; right: 140px; }
+        #reload-btn { top: 10px; right: 270px; }
+
+        /* Панели */
+        .panel {
             position: absolute; top: 60px; right: 10px; z-index: 1000;
-            background: white; padding: 15px; border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); width: 260px;
-            display: none; max-height: 80vh; overflow-y: auto;
+            background: #2d2d44; padding: 15px; border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 280px;
+            display: none; max-height: 75vh; overflow-y: auto;
+            border: 1px solid #444;
         }
-        #filter-panel.active { display: block; }
-        .filter-group { margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .filter-group:last-child { border-bottom: none; }
-        .filter-group label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; }
-        .filter-group input[type="checkbox"] { margin-right: 8px; }
+        .panel.active { display: block; }
+        .panel h4 { margin: 0 0 12px 0; color: #fff; font-size: 16px; border-bottom: 1px solid #444; padding-bottom: 8px; }
+
+        /* Фильтры */
+        .filter-group { margin-bottom: 12px; }
+        .filter-group label { display: block; margin: 6px 0; font-size: 14px; cursor: pointer; }
+        .filter-group input[type="checkbox"] { margin-right: 8px; accent-color: #3390ec; }
+        .filter-group select {
+            width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #444;
+            background: #1a1a2e; color: #eee; margin-top: 5px;
+        }
         .apply-btn {
             width: 100%; background: #3390ec; color: white; border: none;
-            padding: 12px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;
+            padding: 12px; border-radius: 6px; cursor: pointer; font-weight: 600;
+            margin-top: 8px; transition: background 0.2s;
         }
         .apply-btn:hover { background: #2578c9; }
+
+        /* Отладочная панель */
+        #debug-panel { width: 320px; max-height: 80vh; }
+        .debug-table {
+            width: 100%; border-collapse: collapse; font-size: 12px;
+            background: #1a1a2e; border-radius: 6px; overflow: hidden;
+        }
+        .debug-table th, .debug-table td {
+            padding: 6px 8px; text-align: left; border-bottom: 1px solid #333;
+        }
+        .debug-table th { background: #3d3d5c; color: #aaa; font-weight: 600; position: sticky; top: 0; }
+        .debug-table tr:hover { background: #3d3d5c; }
+        .debug-empty { color: #888; font-style: italic; padding: 10px; text-align: center; }
+        .debug-stats { font-size: 12px; color: #888; margin-bottom: 10px; }
+
+        /* Маркеры */
         .custom-marker {
             border-radius: 50%; border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.4); transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5); transition: transform 0.2s;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; color: white; font-weight: bold;
         }
-        .custom-marker:hover { transform: scale(1.2); z-index: 1000 !important; }
+        .custom-marker:hover { transform: scale(1.3); z-index: 1000 !important; }
         .marker-restaurant { background-color: #2ecc71; }
         .marker-event { background-color: #e74c3c; }
-        .marker-cafe { background-color: #34495e; }
-        .popup-content b { display: block; margin-bottom: 5px; font-size: 15px; }
-        .popup-content a { color: #3390ec; text-decoration: none; font-weight: 500; }
-        .popup-content .stars { color: #f1c40f; margin: 5px 0; }
-        #loading {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: white; padding: 20px; border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 2000; display: block;
-            text-align: center;
+        .marker-cafe { background-color: #95a5a6; }
+
+        /* Попап */
+        .leaflet-popup-content-wrapper {
+            background: #2d2d44; color: #eee; border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
+        .leaflet-popup-tip { background: #2d2d44; }
+        .popup-content b { display: block; margin-bottom: 6px; font-size: 15px; color: #fff; }
+        .popup-content .stars { color: #f1c40f; margin: 4px 0; }
+        .popup-content a { color: #3390ec; text-decoration: none; font-weight: 500; }
+        .popup-content a:hover { text-decoration: underline; }
+
+        /* Статус бар */
+        #status {
+            position: absolute; bottom: 10px; left: 10px; right: 10px;
+            background: #2d2d44; padding: 10px 14px; border-radius: 8px;
+            font-size: 13px; color: #aaa; z-index: 1000; border: 1px solid #444;
+            display: none;
+        }
+        #status.show { display: block; }
+        #status.error { color: #e74c3c; border-color: #e74c3c; }
+        #status.success { color: #2ecc71; border-color: #2ecc71; }
+
+        /* Скроллбар */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1a1a2e; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
     </style>
 </head>
 <body>
-    <div id="loading">Загрузка карты...<br><small>Проверьте консоль (F12) при ошибках</small></div>
-    <button id="filter-btn" onclick="toggleFilters()">⚙ Фильтры</button>
-    <div id="filter-panel">
+    <!-- Кнопки управления -->
+    <button id="reload-btn" class="control-btn" onclick="reloadData()">🔄 Обновить</button>
+    <button id="debug-btn" class="control-btn" onclick="toggleDebug()">🐛 Отладка</button>
+    <button id="filter-btn" class="control-btn" onclick="toggleFilters()">⚙ Фильтры</button>
+
+    <!-- Панель фильтров -->
+    <div id="filter-panel" class="panel">
+        <h4>🔍 Фильтры</h4>
         <div class="filter-group">
             <label>Тип места:</label>
             <label><input type="checkbox" value="Ресторан" checked> Ресторан</label>
@@ -63,136 +122,261 @@
             <label><input type="checkbox" value="Мероприятие" checked> Мероприятие</label>
         </div>
         <div class="filter-group">
-            <label>Звезды (мин):</label>
-            <select id="stars-select" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+            <label>Мин. звёзды:</label>
+            <select id="stars-select">
                 <option value="0">Любые</option>
                 <option value="3">3+</option>
                 <option value="4">4+</option>
-                <option value="5">5</option>
+                <option value="5">Только 5</option>
             </select>
         </div>
         <button class="apply-btn" onclick="applyFilters()">Применить</button>
     </div>
+
+    <!-- Отладочная панель -->
+    <div id="debug-panel" class="panel">
+        <h4>📊 Загруженные данные</h4>
+        <div class="debug-stats" id="debug-stats">Нет данных</div>
+        <div style="max-height: 50vh; overflow-y: auto;">
+            <table class="debug-table" id="debug-table">
+                <thead>
+                    <tr><th>Тип</th><th>⭐</th><th>Lat</th><th>Lng</th><th>Описание</th></tr>
+                </thead>
+                <tbody id="debug-body"></tbody>
+            </table>
+        </div>
+    </div>
+
     <div id="map"></div>
+    <div id="status"></div>
 
     <script>
+        // ================= КОНФИГ =================
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUUBwrpxYhsqeh8Jh6CR5KSQUfFNuBi7WVYTOYur0DsFyEuQARkc_6s7YGouXzhCvJoc63iWrSKvsU/pub?output=csv';
+        const CENTER = [56.8389, 60.6057]; // Екатеринбург
+        const DEFAULT_ZOOM = 12;
+        // ===========================================
 
-        const map = L.map('map').setView([56.8389, 60.6057], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
+        // Инициализация карты с тёмной темой
+        const map = L.map('map').setView(CENTER, DEFAULT_ZOOM);
+        
+        // Тёмные тайлы (CartoDB Dark Matter)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
         }).addTo(map);
 
         let allMarkers = [];
+        let rawData = []; // Для отладки
 
-        // Функция для "очистки" заголовков от пробелов и регистр-независимый поиск
-        function normalizeHeader(header) {
-            return header.trim().toLowerCase();
+        // Нормализация заголовков
+        function normalize(str) {
+            return (str || '').toString().trim().toLowerCase()
+                .replace(/ё/г, 'е').replace(/\s+/g, ' ');
         }
 
-        function getIconColor(type) {
-            if (!type) return 'marker-cafe';
-            const t = type.toLowerCase();
+        // Определение цвета по типу
+        function getMarkerClass(type) {
+            const t = normalize(type);
             if (t.includes('ресторан')) return 'marker-restaurant';
-            if (t.includes('мероприятие')) return 'marker-event';
-            if (t.includes('кафе')) return 'marker-cafe';
+            if (t.includes('мероприятие') || t.includes('event')) return 'marker-event';
+            if (t.includes('кафе') || t.includes('cafe')) return 'marker-cafe';
             return 'marker-cafe';
         }
 
-        function createCustomIcon(colorClass) {
+        // Создание иконки маркера
+        function createIcon(colorClass, stars) {
             return L.divIcon({
                 className: `custom-marker ${colorClass}`,
-                iconSize: [20, 20],
-                iconAnchor: [10, 10]
+                html: stars >= 4 ? '★' : '•',
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
             });
         }
 
-        function loadData() {
-            // Загружаем как текст с явным указанием кодировки через fetch
-            fetch(SHEET_URL)
-                .then(response => response.text())
-                .then(csvText => {
-                    Papa.parse(csvText, {
-                        header: true,
-                        skipEmptyLines: true,
-                        transformHeader: function(header) {
-                            return normalizeHeader(header);
-                        },
-                        complete: function(results) {
-                            document.getElementById('loading').style.display = 'none';
-                            console.log('Загружено строк:', results.data.length);
-                            
-                            const data = results.data;
-                            let added = 0;
-                            
-                            data.forEach(row => {
-                                // Обращаемся к полям через нормализованные ключи
-                                const lat = parseFloat(row['широта']);
-                                const lng = parseFloat(row['долгота']);
-                                
-                                if (!isNaN(lat) && !isNaN(lng)) {
-                                    const type = row['тип'] || 'Другое';
-                                    const stars = parseInt(row['звезды']) || 0;
-                                    const colorClass = getIconColor(type);
-                                    
-                                    const marker = L.marker([lat, lng], {
-                                        icon: createCustomIcon(colorClass)
-                                    });
+        // Показать статус
+        function showStatus(msg, type = 'info') {
+            const el = document.getElementById('status');
+            el.textContent = msg;
+            el.className = `show ${type}`;
+            setTimeout(() => el.className = '', 4000);
+        }
 
-                                    const popupContent = `
-                                        <div class="popup-content">
-                                            <b>${type}</b>
-                                            <div class="stars">${'⭐'.repeat(stars)}</div>
-                                            <div>${row['описание'] || ''}</div>
-                                            <a href="${row['ссылка'] || '#'}" target="_blank">🔗 Открыть пост</a>
-                                        </div>
-                                    `;
-                                    marker.bindPopup(popupContent);
-                                    marker.meta = { type: type, stars: stars };
-                                    allMarkers.push(marker);
-                                    marker.addTo(map);
-                                    added++;
-                                }
-                            });
-                            console.log('Добавлено маркеров:', added);
-                        },
-                        error: function(err) {
-                            document.getElementById('loading').innerText = 'Ошибка парсинга CSV!';
-                            console.error('PapaParse error:', err);
-                        }
-                    });
-                })
-                .catch(err => {
-                    document.getElementById('loading').innerText = 'Ошибка загрузки данных!';
-                    console.error('Fetch error:', err);
+        // Загрузка данных
+        async function loadData() {
+            showStatus('Загрузка данных...', 'info');
+            allMarkers.forEach(m => map.removeLayer(m));
+            allMarkers = [];
+            rawData = [];
+
+            try {
+                const response = await fetch(SHEET_URL + '&_=' + Date.now()); // Кэш-бастинг
+                const csvText = await response.text();
+                
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    transformHeader: h => normalize(h),
+                    complete: processResults,
+                    error: err => {
+                        console.error('PapaParse error:', err);
+                        showStatus('Ошибка парсинга CSV', 'error');
+                    }
                 });
+            } catch (err) {
+                console.error('Fetch error:', err);
+                showStatus('Не удалось загрузить данные', 'error');
+            }
         }
 
-        function toggleFilters() {
-            const panel = document.getElementById('filter-panel');
-            panel.classList.toggle('active');
-        }
-
-        function applyFilters() {
-            document.getElementById('filter-panel').classList.remove('active');
-            const checkedTypes = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
-            const minStars = parseInt(document.getElementById('stars-select').value);
+        // Обработка результатов парсинга
+        function processResults(results) {
+            const data = results.data.filter(row => row['широта'] && row['долгота']);
+            console.log('📦 Загружено строк:', results.data.length);
+            console.log('📍 Подходящих с координатами:', data.length);
+            console.log('🔑 Доступные колонки:', Object.keys(data[0] || {}));
             
+            rawData = data; // Сохраняем для отладки
+            updateDebugPanel();
+
+            if (data.length === 0) {
+                showStatus('Нет данных с координатами. Проверьте отладку 🐛', 'error');
+                return;
+            }
+
+            let added = 0;
+            data.forEach(row => {
+                const lat = parseFloat(row['широта']);
+                const lng = parseFloat(row['долгота']);
+                
+                if (isNaN(lat) || isNaN(lng)) return;
+
+                const type = row['тип'] || 'Другое';
+                const stars = parseInt(row['звезды']) || 0;
+                const colorClass = getMarkerClass(type);
+                
+                const marker = L.marker([lat, lng], {
+                    icon: createIcon(colorClass, stars)
+                });
+
+                const popup = `
+                    <div class="popup-content">
+                        <b>${type}</b>
+                        <div class="stars">${'⭐'.repeat(stars)}${stars ? ` (${stars})` : ''}</div>
+                        <div>${row['описание'] || 'Без описания'}</div>
+                        ${row['ссылка'] ? `<a href="${row['ссылка']}" target="_blank">🔗 Открыть пост</a>` : ''}
+                    </div>
+                `;
+                marker.bindPopup(popup);
+                marker.meta = { 
+                    type: normalize(type), 
+                    stars: stars,
+                    originalType: type
+                };
+                
+                allMarkers.push(marker);
+                marker.addTo(map);
+                added++;
+            });
+
+            showStatus(`Показано ${added} из ${data.length} мест`, 'success');
+            console.log('✅ Добавлено маркеров:', added);
+        }
+
+        // Обновление отладочной панели
+        function updateDebugPanel() {
+            const tbody = document.getElementById('debug-body');
+            const stats = document.getElementById('debug-stats');
+            
+            if (rawData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="debug-empty">Данные не загружены</td></tr>';
+                stats.textContent = '';
+                return;
+            }
+
+            stats.textContent = `Всего: ${rawData.length} | Показано: ${allMarkers.length}`;
+            
+            tbody.innerHTML = rawData.slice(0, 50).map(row => {
+                const lat = parseFloat(row['широта']);
+                const lng = parseFloat(row['долгота']);
+                const valid = !isNaN(lat) && !isNaN(lng);
+                return `
+                    <tr style="${valid ? '' : 'opacity: 0.5;'}">
+                        <td>${row['тип'] || '-'}</td>
+                        <td>${row['звезды'] || 0}</td>
+                        <td style="color: ${valid ? '#2ecc71' : '#e74c3c'}">${lat?.toFixed(4) || '—'}</td>
+                        <td style="color: ${valid ? '#2ecc71' : '#e74c3c'}">${lng?.toFixed(4) || '—'}</td>
+                        <td style="max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${row['описание'] || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Управление панелями
+        function toggleFilters() {
+            document.getElementById('filter-panel').classList.toggle('active');
+            document.getElementById('debug-panel').classList.remove('active');
+        }
+        
+        function toggleDebug() {
+            document.getElementById('debug-panel').classList.toggle('active');
+            document.getElementById('filter-panel').classList.remove('active');
+            if (document.getElementById('debug-panel').classList.contains('active')) {
+                updateDebugPanel();
+            }
+        }
+
+        function closePanels() {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        }
+
+        // Применение фильтров
+        function applyFilters() {
+            closePanels();
+            
+            const checkedTypes = Array.from(document.querySelectorAll('#filter-panel input[type="checkbox"]:checked'))
+                .map(cb => normalize(cb.value));
+            const minStars = parseInt(document.getElementById('stars-select').value);
+
             allMarkers.forEach(m => map.removeLayer(m));
             
+            let shown = 0;
             allMarkers.forEach(marker => {
-                const isTypeMatch = checkedTypes.some(t => marker.meta.type.toLowerCase().includes(t.toLowerCase()));
-                const isStarMatch = marker.meta.stars >= minStars;
-                if (isTypeMatch && isStarMatch) { marker.addTo(map); }
+                const typeMatch = checkedTypes.length === 0 || checkedTypes.some(t => marker.meta.type.includes(t));
+                const starMatch = marker.meta.stars >= minStars;
+                
+                if (typeMatch && starMatch) {
+                    marker.addTo(map);
+                    shown++;
+                }
             });
+            
+            showStatus(`Показано: ${shown}`, 'success');
         }
 
-        // Инициализация
-        loadData();
-        if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.ready();
-            window.Telegram.WebApp.expand();
+        // Перезагрузка данных
+        function reloadData() {
+            showStatus('Обновление...', 'info');
+            loadData();
         }
+
+        // Закрытие панелей при клике на карту
+        map.on('click', closePanels);
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            if (window.Telegram?.WebApp) {
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
+                // Адаптация цветов под тему ТГ
+                if (window.Telegram.WebApp.colorScheme === 'light') {
+                    document.body.style.background = '#f0f0f0';
+                    document.body.style.color = '#000';
+                }
+            }
+        });
     </script>
 </body>
 </html>
