@@ -4,93 +4,126 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Карта Мест</title>
+    
+    <!-- Карта Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Парсер CSV -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    
+    <!-- Telegram WebApp -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
     <style>
+        /* ================= ЦВЕТА (3 основных) ================= */
+        :root {
+            --color-bg: #0f0f1a;        /* Фон (тёмный) */
+            --color-blue: #3390ec;      /* Синий (кнопки, акценты) */
+            --color-olive: #556b2f;     /* Оливковый (кнопки) */
+            --color-text: #ffffff;      /* Текст */
+            --color-panel: #1e1e32;     /* Панели */
+        }
+
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
         body { 
-            margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f0f1a; color: #fff; overflow: hidden;
-        }
-        #map { height: 100vh; width: 100vw; }
-
-        /* Кнопки */
-        .btn {
-            position: absolute; z-index: 1000; right: 12px; padding: 12px 18px;
-            background: linear-gradient(135deg, #2d2d44, #1a1a2e); color: #fff;
-            border: 1px solid #444; border-radius: 12px; font-size: 15px; font-weight: 500;
-            cursor: pointer; display: flex; align-items: center; gap: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: all 0.2s;
-            backdrop-filter: blur(10px);
-        }
-        .btn:active { transform: scale(0.98); }
-        .btn:hover { border-color: #3390ec; }
-        #filter-btn { top: 12px; }
-        #share-btn { top: 12px; right: 140px; }
-
-        /* Панель фильтров */
-        #filter-panel {
-            position: absolute; top: 64px; right: 12px; z-index: 999;
-            background: linear-gradient(135deg, #1e1e32, #151525);
-            padding: 16px; border-radius: 16px; width: 270px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5); border: 1px solid #333;
-            display: none; animation: slideIn 0.2s ease;
-            max-height: 80vh; overflow-y: auto;
-        }
-        #filter-panel.active { display: block; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .filter-title { font-weight: 600; margin-bottom: 14px; color: #fff; font-size: 16px; }
-        .filter-group { margin-bottom: 14px; }
-        .filter-group label { 
-            display: flex; align-items: center; gap: 10px; padding: 8px 0; 
-            font-size: 14px; cursor: pointer; color: #ccc; transition: color 0.2s;
-        }
-        .filter-group label:hover { color: #fff; }
-        .filter-group input[type="checkbox"] { 
-            width: 18px; height: 18px; accent-color: #3390ec; cursor: pointer; 
-        }
-        .filter-group select {
-            width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #444;
-            background: #252540; color: #fff; font-size: 14px; margin-top: 6px;
+            margin: 0; padding: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg); 
+            color: var(--color-text); 
+            overflow: hidden;
         }
         
-        /* Кнопка ТОП-5 */
-        .top5-btn {
-            width: 100%; padding: 12px; border: none; border-radius: 12px;
-            background: linear-gradient(135deg, #f1c40f, #f39c12);
-            color: #000; font-weight: 700; font-size: 15px; cursor: pointer;
-            margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        .top5-btn.active { background: #2ecc71; color: #fff; }
+        #map { height: 100vh; width: 100vw; }
 
-        .apply-btn {
-            width: 100%; padding: 12px; border: none; border-radius: 12px;
-            background: linear-gradient(135deg, #3390ec, #2578c9);
-            color: white; font-weight: 600; font-size: 15px; cursor: pointer;
-            margin-top: 8px;
+        /* ================= КНОПКИ ================= */
+        .btn {
+            position: absolute; z-index: 1000; right: 12px; padding: 12px 18px;
+            background: var(--color-panel); color: var(--color-text);
+            border: 1px solid #444; border-radius: 12px; 
+            font-size: 15px; font-weight: 500; cursor: pointer;
+            display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: all 0.2s;
         }
-        .apply-btn:active { transform: scale(0.98); }
+        .btn:active { transform: scale(0.98); }
+        .btn:hover { border-color: var(--color-blue); }
+        
+        #filter-btn { top: 12px; }
 
-        /* Лоадер */
+        /* ================= ПАНЕЛЬ ФИЛЬТРОВ ================= */
+        #filter-panel {
+            position: absolute; top: 64px; right: 12px; z-index: 999;
+            background: var(--color-panel);
+            padding: 16px; border-radius: 16px; width: 270px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5); border: 1px solid #333;
+            display: none; max-height: 80vh; overflow-y: auto;
+        }
+        #filter-panel.active { display: block; }
+
+        .filter-title { 
+            font-weight: 600; margin-bottom: 14px; 
+            color: var(--color-text); font-size: 16px; 
+        }
+        
+        .filter-group { margin-bottom: 14px; }
+        
+        .filter-group label { 
+            display: flex; align-items: center; gap: 10px; 
+            padding: 8px 0; font-size: 14px; cursor: pointer; 
+            color: #ccc; transition: color 0.2s;
+        }
+        .filter-group label:hover { color: var(--color-text); }
+        
+        .filter-group input[type="checkbox"] { 
+            width: 18px; height: 18px; 
+            accent-color: var(--color-blue); cursor: pointer; 
+        }
+
+        .filter-group select {
+            width: 100%; padding: 10px 12px; border-radius: 10px; 
+            border: 1px solid #444; background: #252540; 
+            color: var(--color-text); font-size: 14px; margin-top: 6px;
+        }
+
+        /* ================= КНОПКИ ДЕЙСТВИЙ ================= */
+        .btn-action {
+            width: 100%; padding: 12px; border: none; border-radius: 12px;
+            color: white; font-weight: 600; font-size: 15px; 
+            cursor: pointer; margin-top: 8px;
+        }
+        .btn-action:active { transform: scale(0.98); }
+        
+        /* Синяя кнопка */
+        .btn-blue {
+            background: var(--color-blue);
+        }
+        
+        /* Оливковая кнопка */
+        .btn-olive {
+            background: var(--color-olive);
+        }
+
+        /* ================= ЛОАДЕР ================= */
         #loader {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(15, 15, 26, 0.95); z-index: 2000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 20px; transition: opacity 0.3s;
+            display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; gap: 20px;
+            transition: opacity 0.3s;
         }
         #loader.hidden { opacity: 0; pointer-events: none; }
+        
         .spinner {
             width: 50px; height: 50px; border: 4px solid #2d2d44;
-            border-top-color: #3390ec; border-radius: 50%;
+            border-top-color: var(--color-blue); border-radius: 50%;
             animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        
         .loader-text { color: #aaa; font-size: 15px; }
 
-        /* Маркеры */
+        /* ================= МАРКЕРЫ ================= */
         .marker-dot {
             width: 20px; height: 20px; border-radius: 50%;
             border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
@@ -98,72 +131,77 @@
             font-size: 11px; transition: transform 0.2s;
         }
         .marker-dot:hover { transform: scale(1.25); }
-        .m-restaurant { background: #2ecc71; }
-        .m-event { background: #e74c3c; }
-        .m-cafe { background: #95a5a6; }
+        
+        /* 3 цвета маркеров */
+        .m-restaurant { background: #2ecc71; }  /* Зелёный */
+        .m-event { background: #e74c3c; }       /* Красный */
+        .m-cafe { background: #95a5a6; }        /* Серый */
 
-        /* Попап */
+        /* ================= ПОПАП ================= */
         .leaflet-popup-content-wrapper {
-            background: #1e1e32; color: #fff; border-radius: 14px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5); border: 1px solid #333;
-            max-width: 280px;
+            background: var(--color-panel); color: var(--color-text); 
+            border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); 
+            border: 1px solid #333; max-width: 280px;
         }
-        .leaflet-popup-tip { background: #1e1e32; }
-        .popup-b { font-weight: 600; font-size: 16px; margin-bottom: 6px; color: #fff; }
+        .leaflet-popup-tip { background: var(--color-panel); }
+        
+        .popup-b { font-weight: 600; font-size: 16px; margin-bottom: 6px; }
         .popup-stars { color: #f1c40f; margin: 4px 0; font-size: 14px; }
         .popup-desc { color: #ccc; font-size: 14px; margin: 6px 0; line-height: 1.4; }
-        .popup-likes { 
-            color: #e74c3c; font-size: 14px; margin: 8px 0; font-weight: 600;
-            display: flex; align-items: center; gap: 6px;
-        }
         
-        /* Кнопки в поп-апе */
         .popup-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+        
         .popup-btn {
             padding: 10px 14px; border-radius: 10px; border: none;
             font-size: 14px; font-weight: 500; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 6px;
-            transition: transform 0.2s, opacity 0.2s;
+            text-decoration: none; transition: transform 0.2s;
         }
         .popup-btn:active { transform: scale(0.98); }
-        .btn-route { background: linear-gradient(135deg, #3390ec, #2578c9); color: white; text-decoration: none; }
-        .btn-share { background: linear-gradient(135deg, #2d2d44, #1a1a2e); color: #fff; border: 1px solid #444; }
-        .btn-post { background: linear-gradient(135deg, #27ae60, #1e8449); color: white; text-decoration: none; }
-        .btn-like {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-            color: white;
-        }
-        .btn-like.liked {
-            background: linear-gradient(135deg, #2ecc71, #27ae60);
-        }
 
-        /* Адаптив */
+        /* Адаптив для мобильных */
         @media (max-width: 480px) {
             .btn { padding: 10px 14px; font-size: 14px; }
             #filter-panel { width: calc(100% - 24px); right: 12px; }
-            #share-btn { display: none; }
         }
     </style>
 </head>
 <body>
+    <!-- Лоадер -->
     <div id="loader">
         <div class="spinner"></div>
         <div class="loader-text">Загружаем места...</div>
     </div>
 
-    <button id="share-btn" class="btn" onclick="shareBot()">📤 Поделиться</button>
+    <!-- Кнопка фильтров -->
     <button id="filter-btn" class="btn" onclick="toggleFilters()">⚙ Фильтры</button>
 
+    <!-- Панель фильтров -->
     <div id="filter-panel">
         <div class="filter-title">🔍 Фильтры</div>
+        
+        <!-- 
+        ═══════════════════════════════════════════════════
+        📝 КАК ДОБАВИТЬ НОВЫЙ ТИП МЕСТА В ФИЛЬТРЫ:
+        
+        1. Скопируйте строку с label ниже
+        2. Замените value="Кафе" на ваше название (например, "Бар")
+        3. Замените текст "Кафе" на отображаемое название
+        4. В Google Таблице используйте точно такое же название в колонке "Тип"
+        5. В секции JS (getMarkerClass) добавьте цвет для нового типа
+        ═══════════════════════════════════════════════════
+        -->
         <div class="filter-group">
-            <label><input type="checkbox" value="Ресторан" checked> Ресторан</label>
-            <label><input type="checkbox" value="Кафе" checked> Кафе</label>
-            <label><input type="checkbox" value="Мероприятие" checked> Мероприятие</label>
+            <label>Тип места:</label>
+            <label><input type="checkbox" value="Ресторан" checked onchange="applyFilters()"> Ресторан</label>
+            <label><input type="checkbox" value="Кафе" checked onchange="applyFilters()"> Кафе</label>
+            <label><input type="checkbox" value="Мероприятие" checked onchange="applyFilters()"> Мероприятие</label>
+            <!-- Добавьте новые типы здесь -->
         </div>
+        
         <div class="filter-group">
             <label>Мин. звёзды:</label>
-            <select id="stars-select">
+            <select id="stars-select" onchange="applyFilters()">
                 <option value="0">Любые</option>
                 <option value="3">3+</option>
                 <option value="4">4+</option>
@@ -171,26 +209,28 @@
             </select>
         </div>
         
-        <button class="top5-btn" id="top5-toggle" onclick="toggleTop5()">🏆 ТОП-5 по лайкам</button>
-        <button class="apply-btn" onclick="applyFilters()">Сбросить фильтры</button>
+        <button class="btn-action btn-blue" onclick="resetFilters()">🔄 Сбросить фильтры</button>
     </div>
 
+    <!-- Карта -->
     <div id="map"></div>
 
     <script>
-        // ================= КОНФИГ =================
+        // ================= НАСТРОЙКИ =================
+        
+        // ⚠️ ССЫЛКА НА ВАШУ GOOGLE ТАБЛИЦУ (CSV)
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUUBwrpxYhsqeh8Jh6CR5KSQUfFNuBi7WVYTOYur0DsFyEuQARkc_6s7YGouXzhCvJoc63iWrSKvsU/pub?output=csv';
         
-        // ⚠️ ВСТАВЬТЕ СЮДА URL ВАШЕГО APPS SCRIPT
-        const SCRIPT_URL = 'https://script.googleusercontent.com/macros/echo?user_content_key=AWDtjMXl48HhtTDsFR3nL80Xb2Z960OlvVA3m8liLxJvVNnqYl8IdgL23a1JdW67ff34VE9TQTrqOsZxA-mEiEJwrPFrlwG5f5cUZ7l3VU90nzgWwjbVFSmzBFrde_8rObfcezgzHdqXwQFIyhbS09BKKGEnXpFFpeT0JSW_fyKZKz5vXAlxs-xP0u6_m1zYBAwb5p-Xaob_jsYzpCUyI3EBF1ml6eJ67YipL8vRRkZyCiuW5KG8MSUgEZ2JQ3n6-OTjDZrI0tnzDEHLj8GYn077EJ3qG49JcA&lib=MzHlyoAthQjWNx_q5gDBPGMa0aySdfDvo';
-        
+        // Центр карты (Екатеринбург)
         const CENTER = [56.8389, 60.6057];
         const DEFAULT_ZOOM = 12;
-        const BOT_USERNAME = 'your_bot_username';
-        // ===========================================
+        
+        // =============================================
 
+        // Инициализация карты
         const map = L.map('map').setView(CENTER, DEFAULT_ZOOM);
         
+        // Тёмная тема карты (CartoDB Dark Matter)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
             subdomains: 'abcd',
@@ -198,178 +238,113 @@
         }).addTo(map);
 
         let allMarkers = [];
-        let likesData = {};
-        let userLiked = JSON.parse(localStorage.getItem('userLiked') || '{}');
-        let isTop5Mode = false;
-        let tgUser = null;
 
-        // Получаем ID пользователя Telegram
-        function initTelegramUser() {
-            if (window.Telegram?.WebApp) {
-                const user = window.Telegram.WebApp.initDataUnsafe?.user;
-                if (user) {
-                    tgUser = user.id;
-                }
-            }
-            if (!tgUser) {
-                tgUser = 'anon_' + Math.random().toString(36).substr(2, 9);
-            }
-        }
-
+        // Нормализация текста (убирает пробелы, приводит к нижнему регистру)
         function normalize(str) {
             return (str || '').toString().trim().toLowerCase();
         }
 
+        /* 
+        ═══════════════════════════════════════════════════
+        🎨 КАК ДОБАВИТЬ ЦВЕТ ДЛЯ НОВОГО ТИПА МЕСТА:
+        
+        1. Добавьте новое условие в функцию ниже
+        2. Пример для "Бар":
+           if (t.includes('бар')) return 'm-bar';
+        3. Добавьте CSS класс .m-bar { background: #ваш_цвет; }
+        ═══════════════════════════════════════════════════
+        */
         function getMarkerClass(type) {
             const t = normalize(type);
             if (t.includes('ресторан')) return 'm-restaurant';
             if (t.includes('мероприятие')) return 'm-event';
             if (t.includes('кафе')) return 'm-cafe';
-            return 'm-cafe';
+            // Добавьте новые типы здесь
+            return 'm-cafe'; // Цвет по умолчанию
         }
 
+        // Создание иконки маркера
         function createIcon(colorClass, stars) {
             return L.divIcon({
                 className: `marker-dot ${colorClass}`,
-                html: stars >= 4 ? '★' : '',
+                html: stars >= 4 ? '★' : '',  // Звёздочка для 4-5 звёзд
                 iconSize: [20, 20],
                 iconAnchor: [10, 10]
             });
         }
 
-        // Загрузка лайков с сервера
-        async function loadLikes() {
-            try {
-                const response = await fetch(SCRIPT_URL + '?action=getLikes');
-                const result = await response.json();
-                if (result.success) {
-                    likesData = result.data;
-                }
-            } catch (err) {
-                console.error('Ошибка загрузки лайков:', err);
-            }
-        }
-
-        // Отправка лайка
-        async function sendLike(placeId, btnElement) {
-            if (!placeId) return;
-            
-            btnElement.disabled = true;
-            btnElement.textContent = '⏳...';
-            
-            try {
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'addLike',
-                        placeId: placeId,
-                        userId: tgUser
-                    })
-                });
-                const result = await response.json();
-                
-                if (result.success) {
-                    userLiked[placeId] = true;
-                    localStorage.setItem('userLiked', JSON.stringify(userLiked));
-                    
-                    // Обновляем UI
-                    const likesEl = document.querySelector('.popup-likes-count');
-                    if (likesEl) {
-                        likesEl.textContent = result.data.likes;
-                    }
-                    btnElement.textContent = '❤️ Лайкнуто';
-                    btnElement.classList.add('liked');
-                } else {
-                    btnElement.textContent = '❌ Ошибка';
-                }
-            } catch (err) {
-                console.error('Ошибка лайка:', err);
-                btnElement.textContent = '❤️ Лайк';
-            }
-            
-            btnElement.disabled = false;
-        }
-
+        // Генерация ссылки Яндекс.Карты (маршрут от текущего места)
         function getYandexRouteLink(lat, lng) {
             return `https://yandex.ru/maps/?rtext=~${lat},${lng}`;
         }
 
-        function shareBot() {
-            const text = `🗺 Крутая карта мест в Екатеринбурге!\nОткрывай: https://t.me/${BOT_USERNAME}`;
-            const shareUrl = `https://t.me/share/url?url=${encodeURIComponent('https://t.me/' + BOT_USERNAME)}&text=${encodeURIComponent(text)}`;
-            window.open(shareUrl, '_blank');
-        }
-
+        // Загрузка данных из Google Таблицы
         function loadData() {
-            initTelegramUser();
-            
             fetch(SHEET_URL)
                 .then(response => response.text())
                 .then(csvText => {
                     Papa.parse(csvText, {
                         header: true,
                         skipEmptyLines: true,
-                        transformHeader: h => normalize(h),
+                        transformHeader: h => normalize(h),  // Нормализуем заголовки
                         complete: function(results) {
                             processResults(results.data);
+                        },
+                        error: function(err) {
+                            console.error('Ошибка парсинга:', err);
+                            document.querySelector('.loader-text').textContent = 'Ошибка загрузки данных';
                         }
                     });
+                })
+                .catch(err => {
+                    console.error('Ошибка fetch:', err);
+                    document.querySelector('.loader-text').textContent = 'Ошибка подключения';
                 });
         }
 
+        // Обработка данных и создание маркеров
         function processResults(data) {
             let added = 0;
             
-            data.forEach((row, index) => {
+            data.forEach(row => {
                 const lat = parseFloat(row['широта']);
                 const lng = parseFloat(row['долгота']);
                 
+                // Пропускаем строки без координат
                 if (isNaN(lat) || isNaN(lng)) return;
 
                 const type = row['тип'] || 'Другое';
                 const stars = parseInt(row['звезды']) || 0;
-                const placeId = row['id'] || String(index);
-                const likes = likesData[placeId] || 0;
-                const isLiked = userLiked[placeId];
-                
                 const colorClass = getMarkerClass(type);
                 
                 const marker = L.marker([lat, lng], {
                     icon: createIcon(colorClass, stars)
                 });
 
+                // Содержимое поп-апа
                 const popup = `
                     <div>
                         <div class="popup-b">${type}</div>
                         <div class="popup-stars">${'⭐'.repeat(stars)}</div>
                         <div class="popup-desc">${row['описание'] || ''}</div>
-                        <div class="popup-likes">
-                            ❤️ <span class="popup-likes-count">${likes}</span> лайков
-                        </div>
                         <div class="popup-actions">
-                            <a href="${getYandexRouteLink(lat, lng)}" target="_blank" class="popup-btn btn-route">
+                            <a href="${getYandexRouteLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">
                                 🗺 Маршрут
                             </a>
-                            <button class="popup-btn btn-like ${isLiked ? 'liked' : ''}" 
-                                onclick="sendLike('${placeId}', this)">
-                                ${isLiked ? '❤️ Лайкнуто' : '❤️ Лайк'}
-                            </button>
                             ${row['ссылка'] ? `
-                            <a href="${row['ссылка']}" target="_blank" class="popup-btn btn-post">
-                                🔗 Пост
+                            <a href="${row['ссылка']}" target="_blank" class="popup-btn btn-olive">
+                                🔗 Пост-отзыв
                             </a>` : ''}
                         </div>
                     </div>
                 `;
                 marker.bindPopup(popup);
+                
+                // Сохраняем метаданные для фильтрации
                 marker.meta = { 
                     type: normalize(type), 
                     stars: stars, 
-                    originalType: type, 
-                    id: placeId,
-                    likes: likes,
-                    lat: lat,
-                    lng: lng
+                    originalType: type 
                 };
                 
                 allMarkers.push(marker);
@@ -377,61 +352,28 @@
                 added++;
             });
 
+            // Скрываем лоадер
             document.getElementById('loader').classList.add('hidden');
             console.log('✅ Загружено мест:', added);
         }
 
+        // Показать/скрыть панель фильтров
         function toggleFilters() {
             document.getElementById('filter-panel').classList.toggle('active');
         }
 
-        function toggleTop5() {
-            isTop5Mode = !isTop5Mode;
-            const btn = document.getElementById('top5-toggle');
-            
-            if (isTop5Mode) {
-                btn.classList.add('active');
-                btn.textContent = '✅ Показываем ТОП-5';
-                showTop5();
-            } else {
-                btn.classList.remove('active');
-                btn.textContent = '🏆 ТОП-5 по лайкам';
-                applyFilters();
-            }
-        }
-
-        function showTop5() {
-            // Сортируем по лайкам
-            const sorted = [...allMarkers].sort((a, b) => b.meta.likes - a.meta.likes);
-            const top5 = sorted.slice(0, 5);
-            
-            // Скрываем все
-            allMarkers.forEach(m => map.removeLayer(m));
-            
-            // Показываем ТОП-5
-            top5.forEach(m => m.addTo(map));
-            
-            // Центрируем на первом месте
-            if (top5.length > 0) {
-                map.flyTo([top5[0].meta.lat, top5[0].meta.lng], 13);
-            }
-            
-            document.getElementById('filter-panel').classList.remove('active');
-        }
-
+        // Применение фильтров (автоматически при изменении)
         function applyFilters() {
-            isTop5Mode = false;
-            document.getElementById('top5-toggle').classList.remove('active');
-            document.getElementById('top5-toggle').textContent = '🏆 ТОП-5 по лайкам';
+            const checkedTypes = Array.from(
+                document.querySelectorAll('#filter-panel input[type="checkbox"]:checked')
+            ).map(cb => normalize(cb.value));
             
-            document.getElementById('filter-panel').classList.remove('active');
-            
-            const checkedTypes = Array.from(document.querySelectorAll('#filter-panel input[type="checkbox"]:checked'))
-                .map(cb => normalize(cb.value));
             const minStars = parseInt(document.getElementById('stars-select').value);
 
+            // Скрываем все маркеры
             allMarkers.forEach(m => map.removeLayer(m));
             
+            // Показываем только подходящие
             allMarkers.forEach(marker => {
                 const typeMatch = checkedTypes.some(t => marker.meta.type.includes(t));
                 const starMatch = marker.meta.stars >= minStars;
@@ -442,16 +384,32 @@
             });
         }
 
+        // Сброс фильтров к исходным значениям
+        function resetFilters() {
+            // Сброс чекбоксов
+            document.querySelectorAll('#filter-panel input[type="checkbox"]').forEach(cb => {
+                cb.checked = true;
+            });
+            
+            // Сброс звёзд
+            document.getElementById('stars-select').value = '0';
+            
+            // Применение
+            applyFilters();
+        }
+
+        // Закрытие фильтров при клике на карту
         map.on('click', () => {
             document.getElementById('filter-panel').classList.remove('active');
         });
 
-        // Загрузка: сначала лайки, потом данные
-        loadLikes().then(() => loadData());
+        // Загрузка данных при старте
+        loadData();
         
+        // Инициализация Telegram WebApp
         if (window.Telegram?.WebApp) {
             window.Telegram.WebApp.ready();
-            window.Telegram.WebApp.expand();
+            window.Telegram.WebApp.expand();  // Развернуть на весь экран
         }
     </script>
 </body>
