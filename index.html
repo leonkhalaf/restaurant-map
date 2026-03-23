@@ -95,7 +95,6 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .loader-text { color: #aaa; font-size: 15px; }
 
-        /* ================= МАРКЕРЫ (ПРОСТО И РАБОЧЕ) ================= */
         .marker-dot {
             border-radius: 50%;
             border: 2px solid #fff;
@@ -108,11 +107,14 @@
             color: white;
         }
         .marker-dot:hover { transform: scale(1.25); }
-        
+
+        .m-new { background-color: #cafced !important; }
         .m-restaurant { background-color: #2ecc71 !important; }
         .m-event { background-color: #e74c3c !important; }
         .m-cafe { background-color: #95a5a6 !important; }
-        /* ============================================================ */
+        .m-bar { background-color: #f39c12 !important; }
+        .m-coffe { background-color: #1abc9c !important; }
+        .m-shop { background-color: #9b59b6 !important; }
 
         .leaflet-popup-content-wrapper {
             background: var(--color-panel); color: var(--color-text); 
@@ -125,7 +127,6 @@
         
         .popup-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
         
-        /* ================= КНОПКИ В ПОПАПЕ ================= */
         .popup-btn {
             padding: 10px 14px; border-radius: 10px; 
             font-size: 14px; font-weight: 500; cursor: pointer;
@@ -138,7 +139,6 @@
         .popup-btn.btn-blue { background-color: var(--color-blue) !important; }
         .popup-btn.btn-olive { background-color: var(--color-olive) !important; }
         .popup-btn[href]:hover { opacity: 0.9; }
-        /* ========================================================= */
 
         #location-toast {
             position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
@@ -183,12 +183,12 @@
         
         <input type="text" class="search-box" id="search-input" placeholder="🔍 Поиск по названию..." oninput="applyFilters()">
         
-        <div class="filter-group">
+        <!-- ⚠️ АВТО-ГЕНЕРАЦИЯ ТИПОВ -->
+        <div class="filter-group" id="types-filter">
             <label>Тип места:</label>
-            <label><input type="checkbox" value="Ресторан" checked onchange="applyFilters()"> Ресторан</label>
-            <label><input type="checkbox" value="Кафе" checked onchange="applyFilters()"> Кафе</label>
-            <label><input type="checkbox" value="Мероприятие" checked onchange="applyFilters()"> Мероприятие</label>
+            <!-- Чекбоксы добавятся автоматически через JS -->
         </div>
+        
         <div class="filter-group">
             <label>Мин. звёзды:</label>
             <select id="stars-select" onchange="applyFilters()">
@@ -205,7 +205,7 @@
     <div id="map"></div>
 
     <script>
-        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUUBwrpxYhsqeh8Jh6CR5KSQUfFNuBi7WVYTOYur0DsFyEuQARkc_6s7YGouXzhCvJoc63iWrSKvsU/pub?output=csv';
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUUBwrpxYhsqeh8Jh6CR5KSQUfFNuBi7WVYTOYur0DsFyEuQARkc_6s7YGouXzhCvJoc63iWrSKvsU/pub?gid=1209047843&single=true&output=csv';
         const CENTER = [56.8389, 60.6057];
         const DEFAULT_ZOOM = 12;
 
@@ -219,17 +219,31 @@
 
         let allMarkers = [];
         let userMarker = null;
+        let availableTypes = []; // ⚠️ Список типов из таблицы
 
         function normalize(str) {
             return (str || '').toString().trim().toLowerCase();
         }
 
+        // ⚠️ ЦВЕТА ДЛЯ ТИПОВ (можно добавлять новые)
+        const typeColors = {
+            'новые': 'm-new',
+            'ресторан': 'm-restaurant',
+            'кафе': 'm-cafe',
+            'мероприятие': 'm-event',
+            'бар': 'm-bar',
+            'кофейня': 'm-coffe',
+            'магазин': 'm-shop'
+            
+        };
+
         function getMarkerClass(type) {
             const t = normalize(type);
-            if (t.includes('ресторан')) return 'm-restaurant';
-            if (t.includes('мероприятие')) return 'm-event';
-            if (t.includes('кафе')) return 'm-cafe';
-            return 'm-cafe';
+            // Проверяем совпадения
+            for (const [key, color] of Object.entries(typeColors)) {
+                if (t.includes(key)) return color;
+            }
+            return 'm-new'; // Цвет по умолчанию
         }
 
         function createIcon(colorClass, stars) {
@@ -241,8 +255,30 @@
             });
         }
 
-        function getGoogleMapsLink(lat, lng) {
-            return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+        function getYandexRouteLink(lat, lng) {
+            return `https://yandex.ru/maps/?rtext=~${lat},${lng}`;
+        }
+
+        // ⚠️ АВТО-ГЕНЕРАЦИЯ ЧЕКБОКСОВ ДЛЯ ТИПОВ
+        function renderTypeFilters(types) {
+            const container = document.getElementById('types-filter');
+            
+            // Сохраняем только заголовок
+            container.innerHTML = '<label>Тип места:</label>';
+            
+            // Создаём чекбокс для каждого типа
+            types.forEach(type => {
+                const label = document.createElement('label');
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = type;
+                checkbox.checked = true; // Все включены по умолчанию
+                checkbox.onchange = applyFilters;
+                
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(' ' + type));
+                container.appendChild(label);
+            });
         }
 
         function showMyLocation() {
@@ -307,6 +343,23 @@
         }
 
         function processResults(data) {
+            // ⚠️ СБОР ВСЕХ УНИКАЛЬНЫХ ТИПОВ
+            const typesSet = new Set();
+            
+            data.forEach(row => {
+                const type = row['тип'] || 'Другое';
+                if (type && type !== '-') {
+                    typesSet.add(type);
+                }
+            });
+            
+            // Преобразуем в массив и сортируем
+            availableTypes = Array.from(typesSet).sort();
+            
+            // ⚠️ ГЕНЕРАЦИЯ ФИЛЬТРОВ
+            renderTypeFilters(availableTypes);
+            
+            // Создание маркеров
             let added = 0;
             data.forEach(row => {
                 const name = row['название'] || row['тип'] || 'Без названия';
@@ -329,7 +382,7 @@
                         <div class="popup-stars">${'⭐'.repeat(stars)}</div>
                         <div class="popup-desc">${row['описание'] || ''}</div>
                         <div class="popup-actions">
-                            <a href="${getGoogleMapsLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">🗺 Маршрут</a>
+                            <a href="${getYandexRouteLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">🗺 Маршрут</a>
                             ${linkHtml}
                         </div>
                     </div>
@@ -340,7 +393,8 @@
                     type: normalize(type), 
                     stars: stars,
                     name: normalize(name),
-                    originalName: name
+                    originalName: name,
+                    originalType: type
                 };
                 allMarkers.push(marker);
                 marker.addTo(map);
@@ -349,6 +403,7 @@
 
             document.getElementById('loader').classList.add('hidden');
             console.log('✅ Загружено мест:', added);
+            console.log('✅ Типы мест:', availableTypes);
         }
 
         function toggleFilters() {
@@ -356,8 +411,9 @@
         }
 
         function applyFilters() {
+            // ⚠️ ПОЛУЧАЕМ ВЫБРАННЫЕ ТИПЫ ИЗ АВТО-ГЕНЕРАЦИИ
             const checkedTypes = Array.from(
-                document.querySelectorAll('#filter-panel input[type="checkbox"]:checked')
+                document.querySelectorAll('#types-filter input[type="checkbox"]:checked')
             ).map(cb => normalize(cb.value));
             
             const minStars = parseInt(document.getElementById('stars-select').value);
@@ -366,7 +422,9 @@
             allMarkers.forEach(m => map.removeLayer(m));
             
             allMarkers.forEach(marker => {
-                const typeMatch = checkedTypes.some(t => marker.meta.type.includes(t));
+                const typeMatch = checkedTypes.length === 0 || 
+                                  checkedTypes.some(t => marker.meta.type.includes(t)) ||
+                                  checkedTypes.some(t => marker.meta.originalType.toLowerCase().includes(t));
                 const starMatch = marker.meta.stars >= minStars;
                 const searchMatch = searchText === '' || 
                                     marker.meta.name.includes(searchText) || 
@@ -379,7 +437,8 @@
         }
 
         function resetFilters() {
-            document.querySelectorAll('#filter-panel input[type="checkbox"]').forEach(cb => cb.checked = true);
+            // Сброс всех чекбоксов типов
+            document.querySelectorAll('#types-filter input[type="checkbox"]').forEach(cb => cb.checked = true);
             document.getElementById('stars-select').value = '0';
             document.getElementById('search-input').value = '';
             applyFilters();
