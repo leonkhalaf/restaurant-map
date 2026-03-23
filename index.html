@@ -107,13 +107,12 @@
             color: white;
         }
         .marker-dot:hover { transform: scale(1.25); }
-
-        .m-new { background-color: #cafced !important; }
+        
         .m-restaurant { background-color: #2ecc71 !important; }
         .m-event { background-color: #e74c3c !important; }
         .m-cafe { background-color: #95a5a6 !important; }
         .m-bar { background-color: #f39c12 !important; }
-        .m-coffe { background-color: #1abc9c !important; }
+        .m-park { background-color: #1abc9c !important; }
         .m-shop { background-color: #9b59b6 !important; }
 
         .leaflet-popup-content-wrapper {
@@ -227,14 +226,12 @@
 
         // ⚠️ ЦВЕТА ДЛЯ ТИПОВ (можно добавлять новые)
         const typeColors = {
-            'новые': 'm-new',
             'ресторан': 'm-restaurant',
             'кафе': 'm-cafe',
             'мероприятие': 'm-event',
             'бар': 'm-bar',
-            'кофейня': 'm-coffe',
+            'парк': 'm-park',
             'магазин': 'm-shop'
-            
         };
 
         function getMarkerClass(type) {
@@ -243,7 +240,7 @@
             for (const [key, color] of Object.entries(typeColors)) {
                 if (t.includes(key)) return color;
             }
-            return 'm-new'; // Цвет по умолчанию
+            return 'm-cafe'; // Цвет по умолчанию
         }
 
         function createIcon(colorClass, stars) {
