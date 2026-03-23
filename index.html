@@ -109,11 +109,15 @@
         .marker-dot:hover { transform: scale(1.25); }
         
         .m-restaurant { background-color: #2ecc71 !important; }
-        .m-event { background-color: #e74c3c !important; }
         .m-cafe { background-color: #95a5a6 !important; }
+        .m-coffee { background-color: #d35400 !important; }
+        .m-event { background-color: #e74c3c !important; }
         .m-bar { background-color: #f39c12 !important; }
         .m-park { background-color: #1abc9c !important; }
         .m-shop { background-color: #9b59b6 !important; }
+        .m-hotel { background-color: #3498db !important; }
+        .m-sport { background-color: #e67e22 !important; }
+        .m-default { background-color: #7f8c8d !important; }
 
         .leaflet-popup-content-wrapper {
             background: var(--color-panel); color: var(--color-text); 
@@ -182,10 +186,8 @@
         
         <input type="text" class="search-box" id="search-input" placeholder="🔍 Поиск по названию..." oninput="applyFilters()">
         
-        <!-- ⚠️ АВТО-ГЕНЕРАЦИЯ ТИПОВ -->
         <div class="filter-group" id="types-filter">
             <label>Тип места:</label>
-            <!-- Чекбоксы добавятся автоматически через JS -->
         </div>
         
         <div class="filter-group">
@@ -204,6 +206,38 @@
     <div id="map"></div>
 
     <script>
+        // =====================================================================
+        // ⚙️ НАСТРОЙКИ ТИПОВ МЕСТ (РЕДАКТИРОВАТЬ ЗДЕСЬ)
+        // =====================================================================
+        
+        const ENABLED_TYPES = [
+            'Ресторан',
+            'Кафе',
+            'Кофейня',
+            'Бар',
+            'Мероприятие',
+            'Парк',
+            'Магазин',
+            'Отель',
+            'Спорт'
+        ];
+
+        const TYPE_COLORS = {
+            'ресторан': 'm-restaurant',
+            'кафе': 'm-cafe',
+            'кофейня': 'm-coffee',
+            'бар': 'm-bar',
+            'мероприятие': 'm-event',
+            'парк': 'm-park',
+            'магазин': 'm-shop',
+            'отель': 'm-hotel',
+            'спорт': 'm-sport'
+        };
+
+        // =====================================================================
+        // 📍 КАРТА И ДАННЫЕ
+        // =====================================================================
+        
         const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUUBwrpxYhsqeh8Jh6CR5KSQUfFNuBi7WVYTOYur0DsFyEuQARkc_6s7YGouXzhCvJoc63iWrSKvsU/pub?gid=1209047843&single=true&output=csv';
         const CENTER = [56.8389, 60.6057];
         const DEFAULT_ZOOM = 12;
@@ -218,29 +252,22 @@
 
         let allMarkers = [];
         let userMarker = null;
-        let availableTypes = []; // ⚠️ Список типов из таблицы
 
         function normalize(str) {
             return (str || '').toString().trim().toLowerCase();
         }
 
-        // ⚠️ ЦВЕТА ДЛЯ ТИПОВ (можно добавлять новые)
-        const typeColors = {
-            'ресторан': 'm-restaurant',
-            'кафе': 'm-cafe',
-            'мероприятие': 'm-event',
-            'бар': 'm-bar',
-            'парк': 'm-park',
-            'магазин': 'm-shop'
-        };
-
         function getMarkerClass(type) {
             const t = normalize(type);
-            // Проверяем совпадения
-            for (const [key, color] of Object.entries(typeColors)) {
-                if (t.includes(key)) return color;
+            if (TYPE_COLORS[t]) {
+                return TYPE_COLORS[t];
             }
-            return 'm-cafe'; // Цвет по умолчанию
+            for (const [key, color] of Object.entries(TYPE_COLORS)) {
+                if (t.includes(key)) {
+                    return color;
+                }
+            }
+            return 'm-default';
         }
 
         function createIcon(colorClass, stars) {
@@ -256,20 +283,16 @@
             return `https://yandex.ru/maps/?rtext=~${lat},${lng}`;
         }
 
-        // ⚠️ АВТО-ГЕНЕРАЦИЯ ЧЕКБОКСОВ ДЛЯ ТИПОВ
         function renderTypeFilters(types) {
             const container = document.getElementById('types-filter');
-            
-            // Сохраняем только заголовок
             container.innerHTML = '<label>Тип места:</label>';
             
-            // Создаём чекбокс для каждого типа
             types.forEach(type => {
                 const label = document.createElement('label');
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.value = type;
-                checkbox.checked = true; // Все включены по умолчанию
+                checkbox.checked = true;
                 checkbox.onchange = applyFilters;
                 
                 label.appendChild(checkbox);
@@ -340,23 +363,22 @@
         }
 
         function processResults(data) {
-            // ⚠️ СБОР ВСЕХ УНИКАЛЬНЫХ ТИПОВ
             const typesSet = new Set();
             
             data.forEach(row => {
-                const type = row['тип'] || 'Другое';
-                if (type && type !== '-') {
-                    typesSet.add(type);
+                const type = row['тип'];
+                if (type && type !== '-' && type.trim() !== '') {
+                    typesSet.add(type.trim());
                 }
             });
             
-            // Преобразуем в массив и сортируем
-            availableTypes = Array.from(typesSet).sort();
+            const availableTypes = Array.from(typesSet).filter(t => {
+                const normalized = normalize(t);
+                return ENABLED_TYPES.some(enabled => normalize(enabled) === normalized);
+            }).sort();
             
-            // ⚠️ ГЕНЕРАЦИЯ ФИЛЬТРОВ
             renderTypeFilters(availableTypes);
             
-            // Создание маркеров
             let added = 0;
             data.forEach(row => {
                 const name = row['название'] || row['тип'] || 'Без названия';
@@ -387,11 +409,11 @@
                 marker.bindPopup(popup);
                 
                 marker.meta = { 
-                    type: normalize(type), 
+                    type: normalize(type),
+                    originalType: type.trim(),
                     stars: stars,
                     name: normalize(name),
-                    originalName: name,
-                    originalType: type
+                    originalName: name
                 };
                 allMarkers.push(marker);
                 marker.addTo(map);
@@ -400,41 +422,47 @@
 
             document.getElementById('loader').classList.add('hidden');
             console.log('✅ Загружено мест:', added);
-            console.log('✅ Типы мест:', availableTypes);
+            console.log('✅ Типы:', availableTypes);
         }
 
         function toggleFilters() {
             document.getElementById('filter-panel').classList.toggle('active');
         }
 
+        // ⚠️ ИСПРАВЛЕННАЯ ФУНКЦИЯ ФИЛЬТРАЦИИ
         function applyFilters() {
-            // ⚠️ ПОЛУЧАЕМ ВЫБРАННЫЕ ТИПЫ ИЗ АВТО-ГЕНЕРАЦИИ
-            const checkedTypes = Array.from(
-                document.querySelectorAll('#types-filter input[type="checkbox"]:checked')
-            ).map(cb => normalize(cb.value));
+            // Получаем ТОЛЬКО отмеченные чекбоксы
+            const checkboxes = document.querySelectorAll('#types-filter input[type="checkbox"]:checked');
+            const selectedTypes = Array.from(checkboxes).map(cb => normalize(cb.value));
             
             const minStars = parseInt(document.getElementById('stars-select').value);
             const searchText = normalize(document.getElementById('search-input').value);
 
+            // Скрываем ВСЕ маркеры сначала
             allMarkers.forEach(m => map.removeLayer(m));
             
+            // Показываем только подходящие
             allMarkers.forEach(marker => {
-                const typeMatch = checkedTypes.length === 0 || 
-                                  checkedTypes.some(t => marker.meta.type.includes(t)) ||
-                                  checkedTypes.some(t => marker.meta.originalType.toLowerCase().includes(t));
+                // ⚠️ ИСПРАВЛЕНИЕ: если нет выбранных типов - НЕ показываем ничего
+                const typeMatch = selectedTypes.length > 0 && 
+                                  selectedTypes.some(t => marker.meta.originalType.toLowerCase() === t);
+                
                 const starMatch = marker.meta.stars >= minStars;
+                
                 const searchMatch = searchText === '' || 
-                                    marker.meta.name.includes(searchText) || 
                                     marker.meta.originalName.toLowerCase().includes(searchText);
                 
+                // Показываем только если ВСЕ условия совпали
                 if (typeMatch && starMatch && searchMatch) {
                     marker.addTo(map);
                 }
             });
+            
+            console.log('🔍 Фильтр: типов выбрано =', selectedTypes.length, '| Показано =', 
+                allMarkers.filter(m => m._map).length);
         }
 
         function resetFilters() {
-            // Сброс всех чекбоксов типов
             document.querySelectorAll('#types-filter input[type="checkbox"]').forEach(cb => cb.checked = true);
             document.getElementById('stars-select').value = '0';
             document.getElementById('search-input').value = '';
