@@ -165,10 +165,16 @@
         .leaflet-bar { border: none !important; border-radius: 12px !important; overflow: hidden !important; }
         .leaflet-bar a:first-child { border-radius: 12px 12px 0 0 !important; }
         .leaflet-bar a:last-child { border-radius: 0 0 12px 12px !important; margin-bottom: 0 !important; }
-
         @media (max-width: 480px) {
             .btn { padding: 10px 14px; font-size: 14px; }
             #filter-panel { width: calc(100% - 24px); right: 12px; }
+        }
+        
+        /* ⚠️ СКРЫТЬ БЛОК С COPYRIGHT ВНИЗУ */
+        .leaflet-control-attribution,
+        .leaflet-attribution-flag,
+        .leaflet-bottom.leaflet-right {
+            display: none !important;
         }
     </style>
 </head>
