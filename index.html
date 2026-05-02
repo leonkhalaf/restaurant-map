@@ -43,7 +43,7 @@
         
         #filter-btn { top: 12px; right: 12px; }
         #location-btn { bottom: 20px; left: 12px; }
-        #style-btn { bottom: 20px; left: 140px; }
+        #style-btn { bottom: 20px; left: 120px; }
 
         #filter-panel {
             position: absolute; top: 64px; right: 12px; z-index: 999;
@@ -56,6 +56,14 @@
 
         .filter-title { font-weight: 600; margin-bottom: 14px; color: var(--color-text); font-size: 16px; }
         
+        /* ⭐ НОВОЕ: стили для select листов */
+        #sheets-select {
+            width: 100%; padding: 10px 12px; border-radius: 10px;
+            border: 1px solid #444; background: #252540; color: var(--color-text);
+            font-size: 14px; margin-bottom: 14px; cursor: pointer;
+        }
+        #sheets-select:focus { outline: none; border-color: var(--color-blue); }
+
         .search-box {
             width: 100%; padding: 10px 12px; border-radius: 10px;
             border: 1px solid #444; background: #252540; color: var(--color-text);
@@ -169,7 +177,7 @@
         @media (max-width: 480px) {
             .btn { padding: 10px 14px; font-size: 14px; }
             #filter-panel { width: calc(100% - 24px); right: 12px; }
-            #style-btn { left: 120px; padding: 10px 12px; font-size: 13px; }
+            #style-btn { left: 100px; padding: 10px 12px; font-size: 13px; }
         }
         
         /* ⚠️ СКРЫТЬ БЛОК С COPYRIGHT ВНИЗУ */
@@ -194,11 +202,11 @@
     <div id="filter-panel">
         <div class="filter-title">🔍 Фильтры</div>
         
-        <!-- ⭐ НОВОЕ: выпадающий список листов в фильтрах -->
+        <!-- ⭐ НОВОЕ: выпадающий select для выбора листов -->
         <div class="filter-group">
             <label>📄 Таблица:</label>
-            <select id="sheets-select" onchange="switchSheet(this.value)">
-                <option value="">Загружаем листы...</option>
+            <select id="sheets-select" onchange="switchSheetFromSelect()">
+                <option value="">Загрузка листов...</option>
             </select>
         </div>
         
@@ -407,7 +415,7 @@
                         });
                     }
                     console.log('📊 Загруженные листы:', sheets);
-                    populateSheetsSelect();
+                    renderSheetsSelect();
                     loadData();
                 })
                 .catch(err => {
@@ -416,13 +424,13 @@
                 });
         }
 
-        // ⭐ НОВОЕ: заполнение select'а листами
-        function populateSheetsSelect() {
+        // ⭐ НОВОЕ: отрисовка select'а для выбора листов
+        function renderSheetsSelect() {
             const select = document.getElementById('sheets-select');
             select.innerHTML = '';
             
             if (sheets.length === 0) {
-                select.innerHTML = '<option value="">Нет листов</option>';
+                select.innerHTML = '<option value="">Листы не найдены</option>';
                 return;
             }
             
@@ -436,12 +444,18 @@
                 select.appendChild(option);
             });
             
-            console.log('🎨 Select заполнен, листов:', sheets.length);
+            console.log('🎨 Select для листов заполнен, количество:', sheets.length);
         }
 
-        // ⭐ НОВОЕ: переключение на другой лист
-        function switchSheet(gid) {
-            if (!gid || gid == currentSheetGid) return;
+        // ⭐ НОВОЕ: переключение листа из select'а
+        function switchSheetFromSelect() {
+            const select = document.getElementById('sheets-select');
+            const gid = parseInt(select.value);
+            
+            if (gid === currentSheetGid) {
+                console.log('⚠️ Лист уже выбран');
+                return;
+            }
             
             console.log('🔄 Переключение листа: текущий =', currentSheetGid, 'новый =', gid);
             
