@@ -43,7 +43,7 @@
         
         #filter-btn { top: 12px; right: 12px; }
         #location-btn { bottom: 20px; left: 12px; }
-        #style-btn { bottom: 20px; left: 180px; }
+        #style-btn { bottom: 20px; left: 140px; }
 
         #filter-panel {
             position: absolute; top: 64px; right: 12px; z-index: 999;
@@ -81,27 +81,6 @@
         }
         .btn-action:active { transform: scale(0.98); }
         .btn-blue { background: var(--color-blue); }
-
-        /* ⭐ НОВОЕ: стили для вкладок листов - ПЕРЕМЕСТИЛИ НАВЕРХ */
-        #sheets-tabs-container {
-            position: fixed; top: 0; left: 0; right: 0;
-            z-index: 997; background: var(--color-panel);
-            border-bottom: 1px solid #333; display: flex;
-            overflow-x: auto; padding: 8px 12px; gap: 8px;
-            max-height: 50px;
-        }
-
-        #sheets-tabs-container.hidden {
-            display: none;
-        }
-
-        .sheet-tab {
-            padding: 8px 14px; background: #252540; border: 1px solid #444;
-            border-radius: 8px; color: #ccc; cursor: pointer; font-size: 13px;
-            white-space: nowrap; transition: all 0.2s; flex-shrink: 0;
-        }
-        .sheet-tab:hover { border-color: var(--color-blue); color: var(--color-text); }
-        .sheet-tab.active { background: var(--color-blue); color: white; border-color: var(--color-blue); }
 
         #loader {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -190,8 +169,7 @@
         @media (max-width: 480px) {
             .btn { padding: 10px 14px; font-size: 14px; }
             #filter-panel { width: calc(100% - 24px); right: 12px; }
-            #style-btn { left: 150px; padding: 10px 12px; font-size: 13px; }
-            .sheet-tab { padding: 6px 10px; font-size: 11px; }
+            #style-btn { left: 120px; padding: 10px 12px; font-size: 13px; }
         }
         
         /* ⚠️ СКРЫТЬ БЛОК С COPYRIGHT ВНИЗУ */
@@ -208,16 +186,21 @@
         <div class="loader-text">Загружаем места...</div>
     </div>
 
-    <!-- ⭐ НОВОЕ: контейнер для вкладок листов - ПЕРЕМЕСТИЛИ НАВЕРХ -->
-    <div id="sheets-tabs-container"></div>
-
     <button id="location-btn" class="btn" onclick="showMyLocation()">📍 Моё место</button>
-    <!-- ⭐ НОВОЕ: кнопка переключения стиля карты с большим отступом -->
+    <!-- ⭐ НОВОЕ: кнопка переключения стиля карты -->
     <button id="style-btn" class="btn" onclick="toggleMapStyle()">🌙 Стиль</button>
     <button id="filter-btn" class="btn" onclick="toggleFilters()">⚙ Фильтры</button>
 
     <div id="filter-panel">
         <div class="filter-title">🔍 Фильтры</div>
+        
+        <!-- ⭐ НОВОЕ: выпадающий список листов в фильтрах -->
+        <div class="filter-group">
+            <label>📄 Таблица:</label>
+            <select id="sheets-select" onchange="switchSheet(this.value)">
+                <option value="">Загружаем листы...</option>
+            </select>
+        </div>
         
         <input type="text" class="search-box" id="search-input" placeholder="🔍 Поиск по названию..." oninput="applyFilters()">
         
@@ -424,62 +407,45 @@
                         });
                     }
                     console.log('📊 Загруженные листы:', sheets);
-                    renderTabs();
+                    populateSheetsSelect();
                     loadData();
                 })
                 .catch(err => {
                     console.log('❌ Ошибка загрузки листов:', err);
-                    // Загружаем стандартный лист если ошибка
                     loadData();
                 });
         }
 
-        // ⭐ НОВОЕ: отрисовка вкладок листов
-        function renderTabs() {
-            const container = document.getElementById('sheets-tabs-container');
-            container.innerHTML = '';
+        // ⭐ НОВОЕ: заполнение select'а листами
+        function populateSheetsSelect() {
+            const select = document.getElementById('sheets-select');
+            select.innerHTML = '';
             
             if (sheets.length === 0) {
-                container.classList.add('hidden');
+                select.innerHTML = '<option value="">Нет листов</option>';
                 return;
             }
             
-            container.classList.remove('hidden');
-            
             sheets.forEach(sheet => {
-                const tab = document.createElement('button');
-                tab.className = 'sheet-tab' + (sheet.gid == currentSheetGid ? ' active' : '');
-                tab.textContent = sheet.title;
-                tab.onclick = () => switchSheet(sheet.gid, tab);
-                container.appendChild(tab);
+                const option = document.createElement('option');
+                option.value = sheet.gid;
+                option.textContent = sheet.title;
+                if (sheet.gid == currentSheetGid) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
             });
             
-            console.log('🎨 Вкладки отрисованы, количество:', sheets.length);
+            console.log('🎨 Select заполнен, листов:', sheets.length);
         }
 
         // ⭐ НОВОЕ: переключение на другой лист
-        function switchSheet(gid, tabElement) {
+        function switchSheet(gid) {
+            if (!gid || gid == currentSheetGid) return;
+            
             console.log('🔄 Переключение листа: текущий =', currentSheetGid, 'новый =', gid);
             
-            if (gid == currentSheetGid) {
-                console.log('⚠️ Лист уже выбран');
-                return;
-            }
-            
             currentSheetGid = gid;
-            
-            // Обновляем активный класс на вкладках
-            document.querySelectorAll('.sheet-tab').forEach(tab => tab.classList.remove('active'));
-            if (tabElement) {
-                tabElement.classList.add('active');
-            } else {
-                // Обновляем визуально все вкладки
-                document.querySelectorAll('.sheet-tab').forEach(tab => {
-                    if (tab.textContent === sheets.find(s => s.gid == gid)?.title) {
-                        tab.classList.add('active');
-                    }
-                });
-            }
             
             // Очищаем маркеры
             allMarkers.forEach(m => map.removeLayer(m));
