@@ -56,7 +56,6 @@
 
         .filter-title { font-weight: 600; margin-bottom: 14px; color: var(--color-text); font-size: 16px; }
         
-        /* ⭐ НОВОЕ: стили для select листов */
         #sheets-select {
             width: 100%; padding: 10px 12px; border-radius: 10px;
             border: 1px solid #444; background: #252540; color: var(--color-text);
@@ -162,6 +161,43 @@
         #location-toast.show { display: block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
+        /* ====================== НОВОЕ: СТИЛИ ДЛЯ ТАБОВ ЛИСТОВ ====================== */
+        #sheet-tabs {
+            position: absolute;
+            bottom: 75px;
+            left: 12px;
+            right: 12px;
+            z-index: 1000;
+            display: flex;
+            overflow-x: auto;
+            gap: 8px;
+            padding: 8px 0;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        #sheet-tabs::-webkit-scrollbar { display: none; }
+
+        .sheet-tab {
+            flex-shrink: 0;
+            padding: 10px 16px;
+            background: var(--color-panel);
+            color: var(--color-text);
+            border: 1px solid #444;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .sheet-tab.active {
+            background: var(--color-blue);
+            border-color: var(--color-blue);
+            color: white;
+        }
+        .sheet-tab:active { transform: scale(0.96); }
+
         .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important; }
         .leaflet-control-zoom-in, .leaflet-control-zoom-out {
             background: var(--color-panel) !important; color: var(--color-text) !important;
@@ -178,9 +214,9 @@
             .btn { padding: 10px 14px; font-size: 14px; }
             #filter-panel { width: calc(100% - 24px); right: 12px; }
             #style-btn { left: 100px; padding: 10px 12px; font-size: 13px; }
+            #sheet-tabs { bottom: 68px; }
         }
         
-        /* ⚠️ СКРЫТЬ БЛОК С COPYRIGHT ВНИЗУ */
         .leaflet-control-attribution,
         .leaflet-attribution-flag,
         .leaflet-bottom.leaflet-right {
@@ -195,14 +231,12 @@
     </div>
 
     <button id="location-btn" class="btn" onclick="showMyLocation()">📍 Моё место</button>
-    <!-- ⭐ НОВОЕ: кнопка переключения стиля карты -->
     <button id="style-btn" class="btn" onclick="toggleMapStyle()">🌙 Стиль</button>
     <button id="filter-btn" class="btn" onclick="toggleFilters()">⚙ Фильтры</button>
 
     <div id="filter-panel">
         <div class="filter-title">🔍 Фильтры</div>
         
-        <!-- ⭐ НОВОЕ: выпадающий select для выбора листов -->
         <div class="filter-group">
             <label>📄 Таблица:</label>
             <select id="sheets-select" onchange="switchSheetFromSelect()">
@@ -227,6 +261,9 @@
         </div>
         <button class="btn-action btn-blue" onclick="resetFilters()">🔄 Сбросить</button>
     </div>
+
+    <!-- ====================== НОВОЕ: Горизонтальные табы листов ====================== -->
+    <div id="sheet-tabs"></div>
 
     <div id="location-toast"></div>
     <div id="map"></div>
@@ -268,8 +305,17 @@
         const CENTER = [56.8389, 60.6057];
         const DEFAULT_ZOOM = 12;
 
+        // ⭐⭐⭐ РУЧНОЕ ДОБАВЛЕНИЕ ЛИСТОВ (ДОБАВЛЯЙ СЮДА)
+        const MANUAL_SHEETS = [
+            { title: "Основные", gid: 1209047843 },
+            // Добавляй новые листы сюда ↓
+            { title: "Еда и кафе", gid: 63850605 },
+            { title: "Меро", gid: 0 },
+            // { title: "Парки", gid: 1122334455 },
+        ];
+
         // ⭐ НОВОЕ: переменные для листов и стилей карты
-        let sheets = [];
+        let sheets = MANUAL_SHEETS;           // Используем ручной массив
         let currentSheetGid = 1209047843;
         let currentMapStyle = 'dark';
         let currentTileLayer = null;
@@ -300,7 +346,6 @@
             currentTileLayer.addTo(map);
         }
 
-        // ⭐ НОВОЕ: переключение стиля карты (без пересоздания карты)
         function toggleMapStyle() {
             currentMapStyle = currentMapStyle === 'dark' ? 'light' : 'dark';
             updateTileLayer();
@@ -399,32 +444,43 @@
             );
         }
 
-        // ⭐ НОВОЕ: получение списка всех листов из Google Sheets API
-        function loadSheetsList() {
-            const feedUrl = `https://spreadsheets.google.com/feeds/worksheets/${SPREADSHEET_ID}/public/full?alt=json`;
+        // ====================== НОВОЕ: РАБОТА С ТАБАМИ ======================
+        function renderSheetTabs() {
+            const container = document.getElementById('sheet-tabs');
+            container.innerHTML = '';
             
-            fetch(feedUrl)
-                .then(response => response.json())
-                .then(data => {
-                    sheets = [];
-                    if (data.feed && data.feed.entry) {
-                        data.feed.entry.forEach(entry => {
-                            const gid = entry.id.$t.split('/')[ entry.id.$t.split('/').length - 1 ];
-                            const title = entry.title.$t;
-                            sheets.push({ title, gid });
-                        });
-                    }
-                    console.log('📊 Загруженные листы:', sheets);
-                    renderSheetsSelect();
-                    loadData();
-                })
-                .catch(err => {
-                    console.log('❌ Ошибка загрузки листов:', err);
-                    loadData();
-                });
+            sheets.forEach(sheet => {
+                const btn = document.createElement('div');
+                btn.className = 'sheet-tab' + (sheet.gid === currentSheetGid ? ' active' : '');
+                btn.textContent = sheet.title;
+                btn.onclick = () => switchSheet(sheet.gid);
+                container.appendChild(btn);
+            });
         }
 
-        // ⭐ НОВОЕ: отрисовка select'а для выбора листов
+        function switchSheet(gid) {
+            if (gid === currentSheetGid) return;
+            
+            console.log('🔄 Переключение листа через таб:', gid);
+            currentSheetGid = gid;
+            
+            renderSheetTabs();                    // обновляем активный таб
+            
+            allMarkers.forEach(m => map.removeLayer(m));
+            allMarkers = [];
+            
+            document.getElementById('loader').classList.remove('hidden');
+            loadData();
+        }
+
+        // ⭐ НОВОЕ: получение списка всех листов (используем MANUAL_SHEETS)
+        function loadSheetsList() {
+            console.log('📋 Используется ручной список листов');
+            renderSheetsSelect();
+            renderSheetTabs();      // ← добавили рендер табов
+            loadData();
+        }
+
         function renderSheetsSelect() {
             const select = document.getElementById('sheets-select');
             select.innerHTML = '';
@@ -443,31 +499,12 @@
                 }
                 select.appendChild(option);
             });
-            
-            console.log('🎨 Select для листов заполнен, количество:', sheets.length);
         }
 
-        // ⭐ НОВОЕ: переключение листа из select'а
         function switchSheetFromSelect() {
             const select = document.getElementById('sheets-select');
             const gid = parseInt(select.value);
-            
-            if (gid === currentSheetGid) {
-                console.log('⚠️ Лист уже выбран');
-                return;
-            }
-            
-            console.log('🔄 Переключение листа: текущий =', currentSheetGid, 'новый =', gid);
-            
-            currentSheetGid = gid;
-            
-            // Очищаем маркеры
-            allMarkers.forEach(m => map.removeLayer(m));
-            allMarkers = [];
-            
-            // Показываем loader и загружаем новые данные
-            document.getElementById('loader').classList.remove('hidden');
-            loadData();
+            if (gid) switchSheet(gid);
         }
 
         function loadData() {
@@ -565,21 +602,16 @@
             document.getElementById('filter-panel').classList.toggle('active');
         }
 
-        // ⚠️ ИСПРАВЛЕННАЯ ФУНКЦИЯ ФИЛЬТРАЦИИ
         function applyFilters() {
-            // Получаем ТОЛЬКО отмеченные чекбоксы
             const checkboxes = document.querySelectorAll('#types-filter input[type="checkbox"]:checked');
             const selectedTypes = Array.from(checkboxes).map(cb => normalize(cb.value));
             
             const minStars = parseInt(document.getElementById('stars-select').value);
             const searchText = normalize(document.getElementById('search-input').value);
 
-            // Скрываем ВСЕ маркеры сначала
             allMarkers.forEach(m => map.removeLayer(m));
             
-            // Показываем только подходящие
             allMarkers.forEach(marker => {
-                // ⚠️ ИСПРАВЛЕНИЕ: если нет выбранных типов - НЕ показываем ничего
                 const typeMatch = selectedTypes.length > 0 && 
                                   selectedTypes.some(t => marker.meta.originalType.toLowerCase() === t);
                 
@@ -588,14 +620,10 @@
                 const searchMatch = searchText === '' || 
                                     marker.meta.originalName.toLowerCase().includes(searchText);
                 
-                // Показываем только если ВСЕ условия совпали
                 if (typeMatch && starMatch && searchMatch) {
                     marker.addTo(map);
                 }
             });
-            
-            console.log('🔍 Фильтр: типов выбрано =', selectedTypes.length, '| Показано =', 
-                allMarkers.filter(m => m._map).length);
         }
 
         function resetFilters() {
@@ -607,7 +635,7 @@
 
         map.on('click', () => document.getElementById('filter-panel').classList.remove('active'));
         
-        // ⭐ НОВОЕ: загружаем листы и данные при инициализации
+        // ⭐ Инициализация
         console.log('🚀 Инициализация приложения...');
         loadSheetsList();
         
