@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Карта Мест</title>
+    
+    <!-- ⭐ VK BRIDGE - ОБЯЗАТЕЛЬНО ДЛЯ VK MINI APPS -->
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
@@ -43,7 +47,7 @@
         
         #filter-btn { top: 12px; right: 12px; }
         #location-btn { bottom: 20px; left: 12px; }
-        #style-btn { bottom: 20px; left: 160px; }
+        #style-btn { bottom: 20px; left: 120px; }
 
         #filter-panel {
             position: absolute; top: 64px; right: 12px; z-index: 999;
@@ -199,7 +203,6 @@
     <div id="filter-panel">
         <div class="filter-title">🔍 Фильтры</div>
         
-        <!-- ⭐ Выпадающий список листов -->
         <div class="filter-group">
             <label>📄 Таблица:</label>
             <select id="sheets-select" onchange="switchSheetFromSelect()">
@@ -229,20 +232,21 @@
     <div id="map"></div>
 
     <script>
+        // ====================== VK BRIDGE ИНИЦИАЛИЗАЦИЯ ======================
+        function initVKBridge() {
+            if (typeof vkBridge !== 'undefined') {
+                vkBridge.send("VKWebAppInit")
+                    .then(() => console.log('✅ VK Bridge инициализирован'))
+                    .catch(err => console.warn('⚠️ VK Bridge ошибка:', err));
+            }
+        }
+
         // =====================================================================
-        // ⚙️ НАСТРОЙКИ ТИПОВ МЕСТ (РЕДАКТИРОВАТЬ ЗДЕСЬ)
+        // ⚙️ НАСТРОЙКИ ТИПОВ МЕСТ
         // =====================================================================
-        
         const ENABLED_TYPES = [
-            'Ресторан',
-            'Кафе',
-            'Кофейня',
-            'Бар',
-            'Мероприятие',
-            'Парк',
-            'Магазин',
-            'Отель',
-            'Спорт'
+            'Ресторан', 'Кафе', 'Кофейня', 'Бар', 'Мероприятие',
+            'Парк', 'Магазин', 'Отель', 'Спорт'
         ];
 
         const TYPE_COLORS = {
@@ -260,44 +264,40 @@
         // =====================================================================
         // 📍 КАРТА И ДАННЫЕ
         // =====================================================================
-        
         const SPREADSHEET_ID = '2PACX-1vSUUBwrpxYhsqeh8Jh6CR5KSQUfFNuBi7WVYTOYur0DsFyEuQARkc_6s7YGouXzhCvJoc63iWrSKvsU';
         const CENTER = [56.8389, 60.6057];
         const DEFAULT_ZOOM = 12;
 
-        // ⭐⭐⭐ РУЧНОЕ ДОБАВЛЕНИЕ ЛИСТОВ (ДОБАВЛЯЙ ЗДЕСЬ)
+        // ⭐⭐⭐ РУЧНОЕ ДОБАВЛЕНИЕ ЛИСТОВ (ДОБАВЛЯЙ СЮДА)
         const MANUAL_SHEETS = [
             { title: "Основные", gid: 1209047843 },
             // Добавляй новые листы сюда ↓
             { title: "Еда и кафе", gid: 63850605 },
-            { title: "Бары и клубы", gid: 0 },
-            // { title: "Парки и отдых", gid: 1122334455 },
-            // { title: "Мероприятия", gid: 6677889900 },
+            { title: "Остальное", gid: 0 },
+            { title: "Отдых", gid: 1122334455 },
         ];
 
-        // Переменные
         let sheets = MANUAL_SHEETS;
         let currentSheetGid = 1209047843;
         let currentMapStyle = 'dark';
         let currentTileLayer = null;
 
+        let allMarkers = [];
+        let userMarker = null;
+
         const map = L.map('map').setView(CENTER, DEFAULT_ZOOM);
-        
-        // Стиль карты
+
         function updateTileLayer() {
             if (currentTileLayer) map.removeLayer(currentTileLayer);
             
             if (currentMapStyle === 'dark') {
                 currentTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-                    subdomains: 'abcd',
-                    maxZoom: 20
+                    attribution: '&copy; OSM', maxZoom: 20
                 });
                 document.getElementById('style-btn').textContent = '🌙 Стиль';
             } else {
                 currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
-                    maxZoom: 19
+                    attribution: '&copy; OSM', maxZoom: 19
                 });
                 document.getElementById('style-btn').textContent = '☀️ Стиль';
             }
@@ -310,9 +310,6 @@
         }
 
         updateTileLayer();
-
-        let allMarkers = [];
-        let userMarker = null;
 
         function normalize(str) {
             return (str || '').toString().trim().toLowerCase();
@@ -364,7 +361,6 @@
                 setTimeout(() => toast.classList.remove('show'), 5000);
                 return;
             }
-
             toast.textContent = '📍 Определяем...';
             toast.classList.add('show');
 
@@ -380,17 +376,15 @@
                     toast.textContent = `✅ Вы здесь: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
                     setTimeout(() => toast.classList.remove('show'), 5000);
                 },
-                (error) => {
+                () => {
                     toast.textContent = '❌ Не удалось определить';
                     setTimeout(() => toast.classList.remove('show'), 5000);
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                }
             );
         }
 
         // ====================== РАБОТА С ЛИСТАМИ ======================
         function loadSheetsList() {
-            console.log('📋 Загружен ручной список листов');
             renderSheetsSelect();
             loadData();
         }
@@ -398,7 +392,6 @@
         function renderSheetsSelect() {
             const select = document.getElementById('sheets-select');
             select.innerHTML = '';
-            
             sheets.forEach(sheet => {
                 const option = document.createElement('option');
                 option.value = sheet.gid;
@@ -409,70 +402,58 @@
         }
 
         function switchSheetFromSelect() {
-            const select = document.getElementById('sheets-select');
-            const gid = parseInt(select.value);
-            
-            if (gid === currentSheetGid) return;
+            const gid = parseInt(document.getElementById('sheets-select').value);
+            if (!gid || gid === currentSheetGid) return;
             
             currentSheetGid = gid;
-            console.log('🔄 Переключение на лист:', gid);
-            
             allMarkers.forEach(m => map.removeLayer(m));
             allMarkers = [];
-            
             document.getElementById('loader').classList.remove('hidden');
             loadData();
         }
 
         function loadData() {
             const SHEET_URL = `https://docs.google.com/spreadsheets/d/e/${SPREADSHEET_ID}/pub?gid=${currentSheetGid}&single=true&output=csv`;
-            console.log('📥 Загружаем CSV:', SHEET_URL);
-            
             fetch(SHEET_URL)
-                .then(response => response.text())
+                .then(r => r.text())
                 .then(csvText => {
                     Papa.parse(csvText, {
                         header: true,
                         skipEmptyLines: true,
                         transformHeader: h => normalize(h),
-                        complete: function(results) {
-                            processResults(results.data);
-                        }
+                        complete: (results) => processResults(results.data)
                     });
                 })
-                .catch(err => {
-                    console.error('❌ Ошибка загрузки:', err);
-                    document.querySelector('.loader-text').textContent = 'Ошибка подключения';
+                .catch(() => {
+                    document.querySelector('.loader-text').textContent = 'Ошибка загрузки';
                 });
         }
 
         function processResults(data) {
-            // ... (твоя оригинальная функция без изменений)
             const typesSet = new Set();
             data.forEach(row => {
                 const type = row['тип'];
-                if (type && type !== '-' && type.trim() !== '') typesSet.add(type.trim());
+                if (type && type !== '-' && type.trim()) typesSet.add(type.trim());
             });
-            
-            const availableTypes = Array.from(typesSet).filter(t => {
-                const normalized = normalize(t);
-                return ENABLED_TYPES.some(enabled => normalize(enabled) === normalized);
-            }).sort();
-            
+
+            const availableTypes = Array.from(typesSet).filter(t => 
+                ENABLED_TYPES.some(enabled => normalize(enabled) === normalize(t))
+            ).sort();
+
             renderTypeFilters(availableTypes);
-            
-            let added = 0;
+
             data.forEach(row => {
                 const name = row['название'] || row['тип'] || 'Без названия';
                 const type = row['тип'] || 'Другое';
                 const stars = parseInt(row['звезды'] || '0');
                 const lat = parseFloat(row['широта']);
                 const lng = parseFloat(row['долгота']);
-                
+
                 if (isNaN(lat) || isNaN(lng)) return;
 
-                const colorClass = getMarkerClass(type);
-                const marker = L.marker([lat, lng], { icon: createIcon(colorClass, stars) });
+                const marker = L.marker([lat, lng], { 
+                    icon: createIcon(getMarkerClass(type), stars) 
+                });
 
                 const linkHtml = row['ссылка'] ? 
                     `<a href="${row['ссылка']}" target="_blank" class="popup-btn btn-olive">🔗 Пост</a>` : '';
@@ -489,21 +470,16 @@
                     </div>
                 `;
                 marker.bindPopup(popup);
-                
-                marker.meta = { 
-                    type: normalize(type),
+                marker.meta = {
                     originalType: type.trim(),
                     stars: stars,
-                    name: normalize(name),
                     originalName: name
                 };
                 allMarkers.push(marker);
                 marker.addTo(map);
-                added++;
             });
 
             document.getElementById('loader').classList.add('hidden');
-            console.log('✅ Загружено мест:', added);
         }
 
         function toggleFilters() {
@@ -511,22 +487,18 @@
         }
 
         function applyFilters() {
-            const checkboxes = document.querySelectorAll('#types-filter input[type="checkbox"]:checked');
-            const selectedTypes = Array.from(checkboxes).map(cb => normalize(cb.value));
-            
+            const selectedTypes = Array.from(document.querySelectorAll('#types-filter input[type="checkbox"]:checked'))
+                .map(cb => normalize(cb.value));
             const minStars = parseInt(document.getElementById('stars-select').value);
             const searchText = normalize(document.getElementById('search-input').value);
 
             allMarkers.forEach(m => map.removeLayer(m));
-            
             allMarkers.forEach(marker => {
-                const typeMatch = selectedTypes.length > 0 && selectedTypes.some(t => marker.meta.originalType.toLowerCase() === t);
+                const typeMatch = selectedTypes.length === 0 || selectedTypes.some(t => marker.meta.originalType.toLowerCase() === t);
                 const starMatch = marker.meta.stars >= minStars;
-                const searchMatch = searchText === '' || marker.meta.originalName.toLowerCase().includes(searchText);
+                const searchMatch = !searchText || marker.meta.originalName.toLowerCase().includes(searchText);
                 
-                if (typeMatch && starMatch && searchMatch) {
-                    marker.addTo(map);
-                }
+                if (typeMatch && starMatch && searchMatch) marker.addTo(map);
             });
         }
 
@@ -538,11 +510,12 @@
         }
 
         map.on('click', () => document.getElementById('filter-panel').classList.remove('active'));
-        
-        // Инициализация
+
+        // ====================== ЗАПУСК ======================
         console.log('🚀 Инициализация приложения...');
+        initVKBridge();
         loadSheetsList();
-        
+
         if (window.Telegram?.WebApp) {
             window.Telegram.WebApp.ready();
             window.Telegram.WebApp.expand();
