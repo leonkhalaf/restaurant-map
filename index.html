@@ -390,25 +390,40 @@
             loadData();
         }
 
-        function renderSheetsSelect() {
+           function renderSheetsSelect() {
             const select = document.getElementById('sheets-select');
             select.innerHTML = '';
+            
             sheets.forEach(sheet => {
                 const option = document.createElement('option');
                 option.value = sheet.gid;
                 option.textContent = sheet.title;
-                if (sheet.gid == currentSheetGid) option.selected = true;
+                
+                // Исправленное сравнение для GID = 0
+                if (Number(sheet.gid) === Number(currentSheetGid)) {
+                    option.selected = true;
+                }
                 select.appendChild(option);
             });
         }
 
         function switchSheetFromSelect() {
-            const gid = parseInt(document.getElementById('sheets-select').value);
-            if (!gid || gid === currentSheetGid) return;
+            const select = document.getElementById('sheets-select');
+            const gid = select.value;                    // НЕ parseInt!
             
-            currentSheetGid = gid;
+            if (gid === '' || Number(gid) === Number(currentSheetGid)) {
+                return;
+            }
+            
+            currentSheetGid = Number(gid);               // Используем Number()
+            
+            console.log('🔄 Переключение на лист GID:', currentSheetGid);
+            
+            // Очищаем маркеры
             allMarkers.forEach(m => map.removeLayer(m));
             allMarkers = [];
+            
+            // Загружаем новый лист
             document.getElementById('loader').classList.remove('hidden');
             loadData();
         }
