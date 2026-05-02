@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Карта Мест</title>
     
-    <!-- VK Bridge для VK Mini Apps -->
+    <!-- ⭐ VK BRIDGE ДЛЯ VK MINI APPS -->
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -47,7 +47,7 @@
         
         #filter-btn { top: 12px; right: 12px; }
         #location-btn { bottom: 20px; left: 12px; }
-        #style-btn { bottom: 20px; left: 160px; }   /* ← изменил на 160 */
+        #style-btn { bottom: 20px; left: 120px; }
 
         #filter-panel {
             position: absolute; top: 64px; right: 12px; z-index: 999;
@@ -165,22 +165,32 @@
         #location-toast.show { display: block; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
+        /* ====================== ПОЛНОЕ СКРЫТИЕ LEAFLET ====================== */
+        .leaflet-control-attribution,
+        .leaflet-attribution-flag,
+        .leaflet-bottom.leaflet-right,
+        .leaflet-control-container .leaflet-bottom .leaflet-right,
+        .leaflet-container .leaflet-control-attribution,
+        .leaflet-attribution {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            height: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
+        }
+
         .leaflet-control-zoom { border: none !important; box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important; }
         .leaflet-control-zoom-in, .leaflet-control-zoom-out {
             background: var(--color-panel) !important; color: var(--color-text) !important;
             border: 1px solid #444 !important; font-size: 20px !important; font-weight: bold !important;
             width: 40px !important; height: 40px !important; line-height: 40px !important; margin-bottom: 4px !important;
         }
-        .leaflet-control-zoom-in:hover, .leaflet-control-zoom-out:hover {
-            background: #2d2d44 !important; border-color: var(--color-blue) !important;
-        }
-        .leaflet-bar { border: none !important; border-radius: 12px !important; overflow: hidden !important; }
-        .leaflet-bar a:first-child { border-radius: 12px 12px 0 0 !important; }
-        .leaflet-bar a:last-child { border-radius: 0 0 12px 12px !important; margin-bottom: 0 !important; }
+
         @media (max-width: 480px) {
             .btn { padding: 10px 14px; font-size: 14px; }
             #filter-panel { width: calc(100% - 24px); right: 12px; }
-            #style-btn { left: 140px; }
+            #style-btn { left: 100px; padding: 10px 12px; font-size: 13px; }
         }
     </style>
 </head>
@@ -226,9 +236,11 @@
     <div id="map"></div>
 
     <script>
-        // VK Bridge
-        if (typeof vkBridge !== 'undefined') {
-            vkBridge.send("VKWebAppInit").catch(() => {});
+        // ====================== VK BRIDGE ======================
+        function initVKBridge() {
+            if (typeof vkBridge !== 'undefined') {
+                vkBridge.send("VKWebAppInit").catch(() => {});
+            }
         }
 
         // =====================================================================
@@ -243,43 +255,54 @@
         };
 
         // =====================================================================
-        // 📍 КАРТА И ДАННЫЕ + РУЧНЫЕ ЛИСТЫ
+        // 📍 КАРТА И ДАННЫЕ
         // =====================================================================
         const SPREADSHEET_ID = '2PACX-1vSUUBwrpxYhsqeh8Jh6CR5KSQUfFNuBi7WVYTOYur0DsFyEuQARkc_6s7YGouXzhCvJoc63iWrSKvsU';
         const CENTER = [56.8389, 60.6057];
         const DEFAULT_ZOOM = 12;
 
-        // ⭐ РУЧНОЕ ДОБАВЛЕНИЕ ЛИСТОВ
+        // ⭐⭐⭐ РУЧНОЕ ДОБАВЛЕНИЕ ЛИСТОВ (ДОБАВЛЯЙ ЗДЕСЬ)
         const MANUAL_SHEETS = [
-            { title: "Основные", gid: 1209047843 },
-            // Добавляй сюда новые листы:
-            { title: "Еда", gid: 0 },
-            { title: "Бары", gid: 63850605 },
+            { title: "Основные", gid: 0 },
+            // Добавляй новые листы сюда ↓
+            // { title: "Еда и кафе", gid: 123456789 },
+            // { title: "Бары", gid: 987654321 },
         ];
 
         let sheets = MANUAL_SHEETS;
-        let currentSheetGid = 1209047843;
+        let currentSheetGid = 0;
         let currentMapStyle = 'dark';
         let currentTileLayer = null;
-        let allMarkers = [];
-        let userMarker = null;
 
         const map = L.map('map').setView(CENTER, DEFAULT_ZOOM);
-
+        
         function updateTileLayer() {
             if (currentTileLayer) map.removeLayer(currentTileLayer);
             if (currentMapStyle === 'dark') {
-                currentTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom: 20});
+                currentTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+                    subdomains: 'abcd', maxZoom: 20
+                });
+                document.getElementById('style-btn').textContent = '🌙 Стиль';
             } else {
-                currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19});
+                currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+                    maxZoom: 19
+                });
+                document.getElementById('style-btn').textContent = '☀️ Стиль';
             }
             currentTileLayer.addTo(map);
         }
+
         function toggleMapStyle() {
             currentMapStyle = currentMapStyle === 'dark' ? 'light' : 'dark';
             updateTileLayer();
         }
+
         updateTileLayer();
+
+        let allMarkers = [];
+        let userMarker = null;
 
         function normalize(str) {
             return (str || '').toString().trim().toLowerCase();
@@ -295,14 +318,18 @@
         }
 
         function createIcon(colorClass, stars) {
-            return L.divIcon({ className: `marker-dot ${colorClass}`, html: stars >= 5 ? '★' : '', iconSize: [20, 20], iconAnchor: [10, 10] });
+            return L.divIcon({
+                className: `marker-dot ${colorClass}`,
+                html: stars >= 5 ? '★' : '',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
         }
 
         function getYandexRouteLink(lat, lng) {
             return `https://yandex.ru/maps/?rtext=~${lat},${lng}`;
         }
 
-        // ... (renderTypeFilters, showMyLocation — без изменений) ...
         function renderTypeFilters(types) {
             const container = document.getElementById('types-filter');
             container.innerHTML = '<label>Тип места:</label>';
@@ -319,18 +346,34 @@
             });
         }
 
-        function showMyLocation() { /* твой оригинальный код */ 
+        function showMyLocation() {
             const toast = document.getElementById('location-toast');
-            if (!navigator.geolocation) { toast.textContent = '❌ Геолокация не поддерживается'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 5000); return; }
-            toast.textContent = '📍 Определяем...'; toast.classList.add('show');
-            navigator.geolocation.getCurrentPosition((position) => {
-                const lat = position.coords.latitude, lng = position.coords.longitude;
-                if (userMarker) map.removeLayer(userMarker);
-                userMarker = L.marker([lat, lng], {icon: L.divIcon({className: 'marker-dot', html: '📍', iconSize: [30, 30], iconAnchor: [15, 15]})}).addTo(map);
-                map.flyTo([lat, lng], 15);
-                toast.textContent = `✅ Вы здесь: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            if (!navigator.geolocation) {
+                toast.textContent = '❌ Геолокация не поддерживается';
+                toast.classList.add('show');
                 setTimeout(() => toast.classList.remove('show'), 5000);
-            }, () => { toast.textContent = '❌ Не удалось определить'; setTimeout(() => toast.classList.remove('show'), 5000); });
+                return;
+            }
+            toast.textContent = '📍 Определяем...';
+            toast.classList.add('show');
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    if (userMarker) map.removeLayer(userMarker);
+                    userMarker = L.marker([lat, lng], {
+                        icon: L.divIcon({className: 'marker-dot', html: '📍', iconSize: [30, 30], iconAnchor: [15, 15]})
+                    }).addTo(map);
+                    map.flyTo([lat, lng], 15);
+                    toast.textContent = `✅ Вы здесь: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                    setTimeout(() => toast.classList.remove('show'), 5000);
+                },
+                (error) => {
+                    toast.textContent = '❌ Не удалось определить';
+                    setTimeout(() => toast.classList.remove('show'), 5000);
+                }
+            );
         }
 
         function loadSheetsList() {
@@ -351,8 +394,9 @@
         }
 
         function switchSheetFromSelect() {
-            const gid = Number(document.getElementById('sheets-select').value);
-            if (gid === currentSheetGid) return;
+            const gid = parseInt(document.getElementById('sheets-select').value);
+            if (isNaN(gid) || gid === currentSheetGid) return;
+            
             currentSheetGid = gid;
             allMarkers.forEach(m => map.removeLayer(m));
             allMarkers = [];
@@ -362,49 +406,107 @@
 
         function loadData() {
             const SHEET_URL = `https://docs.google.com/spreadsheets/d/e/${SPREADSHEET_ID}/pub?gid=${currentSheetGid}&single=true&output=csv`;
-            fetch(SHEET_URL).then(r => r.text()).then(csvText => {
-                Papa.parse(csvText, { header: true, skipEmptyLines: true, transformHeader: h => normalize(h), complete: r => processResults(r.data) });
-            });
+            fetch(SHEET_URL)
+                .then(response => response.text())
+                .then(csvText => {
+                    Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true,
+                        transformHeader: h => normalize(h),
+                        complete: function(results) {
+                            processResults(results.data);
+                        }
+                    });
+                })
+                .catch(err => {
+                    console.error(err);
+                });
         }
 
-        function processResults(data) { /* твой оригинальный processResults без изменений */ 
+        function processResults(data) {
             const typesSet = new Set();
-            data.forEach(row => { const type = row['тип']; if (type && type !== '-' && type.trim() !== '') typesSet.add(type.trim()); });
-            const availableTypes = Array.from(typesSet).filter(t => ENABLED_TYPES.some(enabled => normalize(enabled) === normalize(t))).sort();
+            data.forEach(row => {
+                const type = row['тип'];
+                if (type && type !== '-' && type.trim() !== '') {
+                    typesSet.add(type.trim());
+                }
+            });
+            
+            const availableTypes = Array.from(typesSet).filter(t => {
+                const normalized = normalize(t);
+                return ENABLED_TYPES.some(enabled => normalize(enabled) === normalized);
+            }).sort();
+            
             renderTypeFilters(availableTypes);
             
+            let added = 0;
             data.forEach(row => {
                 const name = row['название'] || row['тип'] || 'Без названия';
                 const type = row['тип'] || 'Другое';
                 const stars = parseInt(row['звезды'] || '0');
                 const lat = parseFloat(row['широта']);
                 const lng = parseFloat(row['долгота']);
+                
                 if (isNaN(lat) || isNaN(lng)) return;
-                const marker = L.marker([lat, lng], { icon: createIcon(getMarkerClass(type), stars) });
-                const linkHtml = row['ссылка'] ? `<a href="${row['ссылка']}" target="_blank" class="popup-btn btn-olive">🔗 Пост</a>` : '';
-                const popup = `<div><div class="popup-b">${name}</div><div class="popup-stars">${'⭐'.repeat(stars)}</div><div class="popup-desc">${row['описание'] || ''}</div><div class="popup-actions"><a href="${getYandexRouteLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">🗺 Маршрут</a>${linkHtml}</div></div>`;
+
+                const colorClass = getMarkerClass(type);
+                const marker = L.marker([lat, lng], { icon: createIcon(colorClass, stars) });
+
+                const linkHtml = row['ссылка'] ? 
+                    `<a href="${row['ссылка']}" target="_blank" class="popup-btn btn-olive">🔗 Пост</a>` : '';
+
+                const popup = `
+                    <div>
+                        <div class="popup-b">${name}</div>
+                        <div class="popup-stars">${'⭐'.repeat(stars)}</div>
+                        <div class="popup-desc">${row['описание'] || ''}</div>
+                        <div class="popup-actions">
+                            <a href="${getYandexRouteLink(lat, lng)}" target="_blank" class="popup-btn btn-blue">🗺 Маршрут</a>
+                            ${linkHtml}
+                        </div>
+                    </div>
+                `;
                 marker.bindPopup(popup);
-                marker.meta = { originalType: normalize(type), stars: stars, originalName: name };
+                
+                marker.meta = { 
+                    type: normalize(type),
+                    originalType: type.trim(),
+                    stars: stars,
+                    name: normalize(name),
+                    originalName: name
+                };
                 allMarkers.push(marker);
                 marker.addTo(map);
+                added++;
             });
+
             document.getElementById('loader').classList.add('hidden');
+            console.log('✅ Загружено мест:', added);
         }
 
-        function toggleFilters() { document.getElementById('filter-panel').classList.toggle('active'); }
+        function toggleFilters() {
+            document.getElementById('filter-panel').classList.toggle('active');
+        }
 
         function applyFilters() {
-            const selectedTypes = Array.from(document.querySelectorAll('#types-filter input[type="checkbox"]:checked')).map(cb => normalize(cb.value));
+            const checkboxes = document.querySelectorAll('#types-filter input[type="checkbox"]:checked');
+            const selectedTypes = Array.from(checkboxes).map(cb => normalize(cb.value));
+            
             const minStars = parseInt(document.getElementById('stars-select').value);
             const searchText = normalize(document.getElementById('search-input').value);
 
             allMarkers.forEach(m => map.removeLayer(m));
             
             allMarkers.forEach(marker => {
-                const typeMatch = selectedTypes.length > 0 && selectedTypes.some(t => marker.meta.originalType === t);
+                const typeMatch = selectedTypes.length > 0 && 
+                                  selectedTypes.some(t => marker.meta.originalType.toLowerCase() === t);
+                
                 const starMatch = marker.meta.stars >= minStars;
                 const searchMatch = searchText === '' || marker.meta.originalName.toLowerCase().includes(searchText);
-                if (typeMatch && starMatch && searchMatch) marker.addTo(map);
+                
+                if (typeMatch && starMatch && searchMatch) {
+                    marker.addTo(map);
+                }
             });
         }
 
@@ -417,7 +519,9 @@
 
         map.on('click', () => document.getElementById('filter-panel').classList.remove('active'));
         
+        // Инициализация
         console.log('🚀 Инициализация приложения...');
+        initVKBridge();
         loadSheetsList();
         
         if (window.Telegram?.WebApp) {
